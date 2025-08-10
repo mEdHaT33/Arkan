@@ -1,0 +1,277 @@
+body {
+  margin: 0;
+  overflow-x: hidden; /* Prevent horizontal scrolling */
+  overflow-y: hidden; /* Prevent vertical scrolling outside page */
+}
+
+.order-page {
+  min-height: 100vh;
+  height: 100vh; /* Full viewport height */
+  background-color: #ffffff; /* Clean white background */
+  padding: 2rem;
+  margin-left: 2rem; /* Default offset for closed sidebar */
+  transition: margin-left 0.3s ease-in-out; /* Match sidebar animation */
+  overflow-x: hidden; /* Prevent horizontal scrolling */
+  overflow-y: auto; /* Allow vertical scrolling */
+  box-sizing: border-box; /* Ensure padding doesn't cause overflow */
+  width: calc(100% - 2rem); /* Account for sidebar offset */
+}
+
+.order-page.shifted {
+  margin-left: 16rem; /* Offset for open sidebar */
+  width: calc(100% - 16rem); /* Adjust width for open sidebar */
+}
+
+.order-title {
+  font-size: 1.75rem;
+  font-weight: 700;
+  color: #1f2937; /* Dark gray */
+  margin-bottom: 1.5rem;
+  text-align: center;
+}
+
+.form-group {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 1.25rem; /* Clear spacing */
+  max-width: 48rem; /* Balanced width */
+  margin: 0 auto;
+  width: 100%; /* Ensure no horizontal overflow */
+}
+
+.form-field {
+  display: flex;
+  flex-direction: column;
+}
+
+.form-label {
+  font-size: 1rem;
+  font-weight: 600;
+  color: #1f2937; /* Dark gray */
+  margin-bottom: 0.5rem;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.field-icon {
+  font-size: 1rem;
+}
+
+.form-input,
+.form-select {
+  padding: 0.75rem;
+  border: 1px solid #e5e7eb; /* Soft gray */
+  border-radius: 0.375rem;
+  font-size: 1rem;
+  color: #1f2937; /* Dark gray */
+  background-color: #f9fafb; /* Light gray */
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+  width: 100%; /* Ensure inputs don't exceed parent width */
+  box-sizing: border-box;
+}
+
+.form-input:focus,
+.form-select:focus {
+  outline: none;
+  border-color: #3b82f6; /* Blue */
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.2); /* Blue focus ring */
+}
+
+.form-checkbox {
+  margin-right: 0.5rem;
+  width: 1.25rem;
+  height: 1.25rem;
+  accent-color: #3b82f6; /* Blue */
+}
+
+.form-buttons {
+  display: flex;
+  gap: 1rem;
+  justify-content: center;
+  margin-top: 1rem;
+}
+
+.form-button {
+  padding: 0.75rem 1.5rem;
+  font-size: 1rem;
+  font-weight: 600;
+  border: none;
+  border-radius: 0.375rem;
+  cursor: pointer;
+  transition: background-color 0.2s ease, transform 0.2s ease;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.form-button.submit-button {
+  background-color: #3b82f6; /* Blue */
+  color: #ffffff;
+}
+
+.form-button.submit-button:hover:not(:disabled) {
+  background-color: #2563eb; /* Darker blue */
+  transform: translateY(-2px);
+}
+
+.form-button.submit-button:focus {
+  outline: none;
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.3);
+}
+
+.form-button.submit-button:disabled {
+  background-color: #6b7280; /* Gray */
+  cursor: not-allowed;
+}
+
+.form-button.reset-button {
+  background-color: #6b7280; /* Gray */
+  color: #ffffff;
+}
+
+.form-button.reset-button:hover:not(:disabled) {
+  background-color: #4b5563; /* Darker gray */
+  transform: translateY(-2px);
+}
+
+.form-button.cancel-button {
+  background-color: #dc2626; /* Red */
+  color: #ffffff;
+}
+
+.form-button.cancel-button:hover:not(:disabled) {
+  background-color: #b91c1c; /* Darker red */
+  transform: translateY(-2px);
+}
+
+.form-button:active:not(:disabled) {
+  transform: translateY(0);
+}
+
+.button-icon {
+  font-size: 1rem;
+}
+
+.spinner {
+  border: 3px solid #e5e7eb; /* Gray */
+  border-top: 3px solid #3b82f6; /* Blue */
+  border-radius: 50%;
+  width: 1.5rem;
+  height: 1.5rem;
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  0% {
+    transform: rotate(0deg);
+  }
+  100% {
+    transform: rotate(360deg);
+  }
+}
+
+.order-status {
+  margin-top: 1.5rem;
+  font-size: 1rem;
+  font-weight: 600;
+  color: #1f2937; /* Dark gray */
+  text-align: center;
+}
+
+.error-message {
+  margin-bottom: 1.5rem;
+  font-size: 1rem;
+  font-weight: 600;
+  color: #dc2626; /* Red */
+  text-align: center;
+}
+
+.modal {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background-color: rgba(0, 0, 0, 0.5); /* Light overlay */
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 1000;
+  overflow-x: hidden; /* Prevent modal horizontal scroll */
+}
+
+.modal-content {
+  background-color: #ffffff; /* White */
+  padding: 1.5rem;
+  border-radius: 0.5rem;
+  border: 1px solid #e5e7eb; /* Gray */
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+  max-width: 28rem;
+  width: 90%;
+  text-align: center;
+  overflow-x: hidden; /* Prevent modal content overflow */
+}
+
+.modal-title {
+  font-size: 1.25rem;
+  font-weight: 600;
+  color: #1f2937; /* Dark gray */
+  margin-bottom: 1rem;
+}
+
+.modal p {
+  font-size: 1rem;
+  color: #4b5563; /* Medium gray */
+  margin-bottom: 1.5rem;
+}
+
+.modal-buttons {
+  display: flex;
+  gap: 1rem;
+  justify-content: center;
+}
+
+@media (max-width: 1024px) {
+  .form-group {
+    max-width: 90%;
+  }
+
+  .order-page {
+    width: calc(100% - 2rem); /* Adjust for sidebar */
+  }
+
+  .order-page.shifted {
+    width: calc(100% - 16rem);
+  }
+}
+
+@media (max-width: 768px) {
+  .order-page {
+    margin-left: 2rem; /* Minimal offset for mobile */
+    padding: 1rem;
+    width: calc(100% - 2rem);
+  }
+
+  .order-title {
+    font-size: 1.5rem;
+  }
+}
+
+@media (max-width: 640px) {
+  .order-page {
+    padding: 0.75rem;
+    width: calc(100% - 2rem);
+  }
+
+  .order-title {
+    font-size: 1.25rem;
+  }
+
+  .form-label,
+  .form-input,
+  .form-select,
+  .form-button {
+    font-size: 0.9rem;
+  }
+}
