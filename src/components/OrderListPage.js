@@ -1,5 +1,23 @@
+// components/OrderListPage.jsx
 import React, { useEffect, useState } from "react";
 import "../styles/OrderListPage.css";
+
+const API_BASE = "https://arkanaltafawuq.com/arkan-system"; // no trailing slash
+const api = (p) => `${API_BASE}/${String(p).replace(/^\/+/, "")}`;
+
+const STATUS_FILTERS = [
+  "all",
+  "pending",
+  "brief uploaded",
+  "quotation uploaded",
+  "waiting for 3d",
+  "design phase",
+  "prova uploaded",
+  "approved",
+  "production files uploaded",
+  "images uploaded",
+  "invoice uploaded",
+];
 
 const OrderListPage = ({ isSidebarOpen }) => {
   const [orders, setOrders] = useState([]);
@@ -9,18 +27,6 @@ const OrderListPage = ({ isSidebarOpen }) => {
   const [modalOrderId, setModalOrderId] = useState(null);
   const [error, setError] = useState("");
 
-  const statuses = [
-    "pending",
-    "brief uploaded",
-    "waiting for 3d",
-    "design phase",
-    "prova uploaded",
-    "approved",
-    "production files uploaded",
-    "images uploaded",
-    "invoice uploaded",
-  ];
-
   useEffect(() => {
     fetchOrdersByStatus(selectedStatus);
   }, [selectedStatus]);
@@ -29,19 +35,25 @@ const OrderListPage = ({ isSidebarOpen }) => {
     try {
       setLoading(true);
       setError("");
-      const url = `https://arkanaltafawuq.com/arkan-system/get_orders_by_status.php?status=${encodeURIComponent(
-        status
-      )}`;
+      const url =
+        status && status !== "all"
+          ? api(`get_orders_by_status.php?status=${encodeURIComponent(status)}`)
+          : api("get_orders_by_status.php"); // backend treats empty/all the same
+
       const res = await fetch(url);
       const data = await res.json();
       if (data.success) {
-        setOrders(data.orders);
+        setOrders(Array.isArray(data.orders) ? data.orders : []);
+        if (!data.orders || data.orders.length === 0) {
+          setError("No orders found for this status.");
+        }
       } else {
         setOrders([]);
-        setError("No orders found for this status.");
+        setError(data.message || "No orders found for this status.");
       }
-    } catch (err) {
-      console.error(err);
+    } catch (e) {
+      console.error(e);
+      setOrders([]);
       setError("Failed to fetch orders.");
     } finally {
       setLoading(false);
@@ -49,30 +61,25 @@ const OrderListPage = ({ isSidebarOpen }) => {
   };
 
   const handleApproveProva = async (orderId) => {
-    const user = JSON.parse(localStorage.getItem("loggedUser"));
     try {
-      const response = await fetch(
-        "https://arkanaltafawuq.com/arkan-system/approve_prova.php",
-        {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            order_id: orderId,
-            approved_by: user?.username || "system",
-          }),
-        }
-      );
-
-      const result = await response.json();
-      if (result.success) {
-        alert("✅ Prova approved. Status updated to 'approved'");
+      const res = await fetch(api("approve_prova.php"), {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          order_id: orderId,
+          approved_by: localStorage.getItem("username") || "system",
+        }),
+      });
+      const data = await res.json();
+      if (data.success) {
+        alert("✅ Prova approved.");
         fetchOrdersByStatus(selectedStatus);
       } else {
-        setError(result.message);
+        setError(data.message || "Approve failed");
       }
     } catch (err) {
-      setError("Request failed.");
       console.error(err);
+      setError("Request failed.");
     }
     setShowModal(false);
   };
@@ -82,58 +89,51 @@ const OrderListPage = ({ isSidebarOpen }) => {
     formData.append("order_id", orderId);
     formData.append("field", field);
     formData.append("file", file);
-
-    const user = JSON.parse(localStorage.getItem("loggedUser"));
-    if (user && user.username) {
-      formData.append("assigned_to", user.username);
-    }
+    formData.append("assigned_to", localStorage.getItem("username") || "account_manager");
 
     try {
-      const res = await fetch(
-        "https://arkanaltafawuq.com/arkan-system/upload_order_file.php",
-        {
-          method: "POST",
-          body: formData,
-        }
-      );
+      const res = await fetch(api("upload_order_file.php"), {
+        method: "POST",
+        body: formData,
+      });
       const data = await res.json();
       if (data.success) {
         alert(`✅ File uploaded. New status: ${data.new_status}`);
         fetchOrdersByStatus(selectedStatus);
       } else {
-        setError(data.message);
+        setError(data.message || "Upload failed");
       }
     } catch (err) {
+      console.error(err);
       setError("Upload failed.");
     }
   };
 
-  const renderUploadInput = (order, fileKey) => {
-    return (
-      <td className="table-cell">
-        <input
-          type="file"
-          onChange={(e) => {
-            if (e.target.files.length > 0) {
-              handleFileUpload(order.order_id, e.target.files[0], fileKey);
-            }
-          }}
-          className="form-input"
-        />
-        {order[fileKey] && (
-          <div className="file-link">
-            <a
-              href={`https://arkanaltafawuq.com/arkan-system/${order[fileKey]}`}
-              target="_blank"
-              rel="noreferrer"
-            >
-              <span className="field-icon">📄</span> View
-            </a>
-          </div>
-        )}
-      </td>
-    );
-  };
+  const renderUploadInput = (order, fileKey, label) => (
+    <td className="table-cell">
+      <input
+        type="file"
+        onChange={(e) => {
+          if (e.target.files && e.target.files.length > 0) {
+            handleFileUpload(order.order_id, e.target.files[0], fileKey);
+          }
+        }}
+        className="form-input"
+        aria-label={`Upload ${label}`}
+      />
+      {order[fileKey] && (
+        <div className="file-link">
+          <a
+            href={`${API_BASE}/${order[fileKey]}`}
+            target="_blank"
+            rel="noreferrer"
+          >
+            <span className="field-icon">📄</span> View
+          </a>
+        </div>
+      )}
+    </td>
+  );
 
   return (
     <div className={`order-page ${isSidebarOpen ? "shifted" : ""}`}>
@@ -142,13 +142,12 @@ const OrderListPage = ({ isSidebarOpen }) => {
       {error && <div className="error-message">❌ {error}</div>}
 
       <div className="status-buttons">
-        {statuses.map((status) => (
+        {STATUS_FILTERS.map((status) => (
           <button
             key={status}
             onClick={() => setSelectedStatus(status)}
-            className={`status-button ${
-              selectedStatus === status ? "active" : ""
-            }`}
+            className={`status-button ${selectedStatus === status ? "active" : ""}`}
+            title={`Filter by ${status}`}
           >
             {status}
           </button>
@@ -191,15 +190,18 @@ const OrderListPage = ({ isSidebarOpen }) => {
                 <tr key={order.order_id}>
                   <td className="table-cell">{order.order_id}</td>
                   <td className="table-cell">
+                    {/* Your table may not have client_name; fallback safely */}
                     {order.client_name || order.client_id}
                   </td>
                   <td className="table-cell">{order.status}</td>
-                  {renderUploadInput(order, "brief_file")}
-                  {renderUploadInput(order, "d3_file")}
-                  {renderUploadInput(order, "prova_file")}
-                  {renderUploadInput(order, "production_file")}
-                  {renderUploadInput(order, "final_images")}
-                  {renderUploadInput(order, "invoice_file")}
+
+                  {renderUploadInput(order, "brief_file", "brief")}
+                  {renderUploadInput(order, "d3_file", "3D")}
+                  {renderUploadInput(order, "prova_file", "prova")}
+                  {renderUploadInput(order, "production_file", "production")}
+                  {renderUploadInput(order, "final_images", "images")}
+                  {renderUploadInput(order, "invoice_file", "invoice")}
+
                   <td className="table-cell">{order.created_by}</td>
                   <td className="table-cell">{order.created_at}</td>
                   <td className="table-cell">
@@ -223,13 +225,10 @@ const OrderListPage = ({ isSidebarOpen }) => {
       )}
 
       {showModal && (
-        <div className="modal">
+        <div className="modal" role="dialog" aria-modal="true">
           <div className="modal-content">
             <h3 className="modal-title">Confirm Prova Approval</h3>
-            <p>
-              Are you sure you want to approve the prova for order{" "}
-              {modalOrderId}?
-            </p>
+            <p>Are you sure you want to approve the prova for order {modalOrderId}?</p>
             <div className="modal-buttons">
               <button
                 onClick={() => handleApproveProva(modalOrderId)}

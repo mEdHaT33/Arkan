@@ -1,4 +1,5 @@
-import React, { useState } from "react";
+// App.js
+import React from "react";
 import {
   BrowserRouter as Router,
   Routes,
@@ -6,6 +7,7 @@ import {
   Navigate,
   useLocation,
 } from "react-router-dom";
+import "./App.css";
 import Login from "./components/Login";
 import Dashboard from "./components/Dashboard";
 import ClientsPage from "./components/ClientsPage";
@@ -19,23 +21,19 @@ import Sidebar from "./components/Sidebar";
 import DesignerManagerPage from "./components/DesignerManagerPage";
 import DesignerTeamPage from "./components/DesignerTeamPage";
 import DesignerManagerAcceptancePage from "./components/DesignerManagerAcceptancePage";
+import WarehousePage from "./components/WarehousePage";
+import FinanceBalance from "./components/FinanceBalance";
 
-// Layout component that includes sidebar
+
 const LayoutWithSidebar = ({ children }) => {
-  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const location = useLocation();
-
-  // Don't show sidebar on login page
-  if (location.pathname === "/login") {
-    return children;
-  }
+  const showSidebar = location.pathname !== "/login";
+  const role = localStorage.getItem("role") || ""; // <-- pass role from localStorage
 
   return (
     <div style={{ display: "flex" }}>
-      <Sidebar isOpen={isSidebarOpen} setIsOpen={setIsSidebarOpen} />
-      <div style={{ flex: 1 }}>
-        {React.cloneElement(children, { isSidebarOpen })}
-      </div>
+      {showSidebar && <Sidebar role={role} />}
+      <div style={{ flex: 1, padding: "20px" }}>{children}</div>
     </div>
   );
 };
@@ -104,6 +102,8 @@ function App() {
               </ProtectedRoute>
             }
           />
+
+          {/* Designer Manager */}
           <Route
             path="/designer-manager"
             element={
@@ -113,15 +113,6 @@ function App() {
             }
           />
           <Route
-            path="/designer-team"
-            element={
-              <ProtectedRoute>
-                <DesignerTeamPage />
-              </ProtectedRoute>
-            }
-          />
-
-          <Route
             path="/designer-manager-approval"
             element={
               <ProtectedRoute>
@@ -129,6 +120,33 @@ function App() {
               </ProtectedRoute>
             }
           />
+
+          {/* Designer Team */}
+          <Route
+            path="/designer-team"
+            element={
+              <ProtectedRoute>
+                <DesignerTeamPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+  path="/warehouse"
+  element={
+    <ProtectedRoute>
+      <WarehousePage />
+    </ProtectedRoute>
+  }
+/>
+
+  <Route
+  path="/financebalance"
+  element={
+    <ProtectedRoute>
+      <FinanceBalance />
+    </ProtectedRoute>
+  }
+/>
         </Routes>
       </LayoutWithSidebar>
     </Router>

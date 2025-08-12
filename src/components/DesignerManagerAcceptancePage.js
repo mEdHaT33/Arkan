@@ -1,4 +1,4 @@
-// ✅ React Frontend - DesignerManagerAcceptancePage.jsx
+// components/DesignerManagerAcceptancePage.jsx
 import React, { useEffect, useState } from "react";
 
 const DesignerManagerAcceptancePage = () => {
@@ -26,10 +26,9 @@ const DesignerManagerAcceptancePage = () => {
       );
       const data = await res.json();
       if (data.success && Array.isArray(data.orders)) {
-        console.log("Fetched orders:", data.orders);
         setOrders(data.orders);
       } else {
-        console.warn("No orders returned or format incorrect.", data);
+        setOrders([]);
       }
     } catch (err) {
       console.error("Failed to fetch orders:", err);
@@ -42,9 +41,7 @@ const DesignerManagerAcceptancePage = () => {
         "https://arkanaltafawuq.com/arkan-system/update_order_status.php",
         {
           method: "POST",
-          headers: {
-            "Content-Type": "application/x-www-form-urlencoded",
-          },
+          headers: { "Content-Type": "application/x-www-form-urlencoded" },
           body: new URLSearchParams({
             order_id: orderId,
             action: action === "approve" ? "accept" : "edit",
@@ -92,11 +89,7 @@ const DesignerManagerAcceptancePage = () => {
       {orders.length === 0 ? (
         <p>No orders in this tab.</p>
       ) : (
-        <table
-          border="1"
-          cellPadding="10"
-          style={{ width: "100%", textAlign: "left" }}
-        >
+        <table border="1" cellPadding="10" style={{ width: "100%", textAlign: "left" }}>
           <thead>
             <tr>
               <th>ID</th>
@@ -111,8 +104,7 @@ const DesignerManagerAcceptancePage = () => {
               let fileLink = "";
               if (selectedTab.includes("3d")) fileLink = order.d3_file;
               if (selectedTab.includes("prova")) fileLink = order.prova_file;
-              if (selectedTab.includes("production"))
-                fileLink = order.production_file;
+              if (selectedTab.includes("production")) fileLink = order.production_file;
 
               return (
                 <tr key={order.order_id}>
@@ -134,18 +126,12 @@ const DesignerManagerAcceptancePage = () => {
                   <td>{order.created_at || "N/A"}</td>
                   <td>
                     <button
-                      onClick={() =>
-                        handleStatusUpdate(order.order_id, "approve")
-                      }
+                      onClick={() => handleStatusUpdate(order.order_id, "approve")}
                       style={{ marginRight: 10 }}
                     >
                       ✅ Approve
                     </button>
-                    <button
-                      onClick={() =>
-                        handleStatusUpdate(order.order_id, "needs_edit")
-                      }
-                    >
+                    <button onClick={() => handleStatusUpdate(order.order_id, "needs_edit")}>
                       ❌ Needs Edit
                     </button>
                   </td>

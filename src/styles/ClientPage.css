@@ -1,42 +1,60 @@
-body {
-  margin: 0;
-  overflow: hidden; /* Prevents scrolling in any direction */
+/* --- Global fixes --- */
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
 }
 
+html, body, #root {
+  min-height: 100%;
+  height: auto !important;
+}
+
+body {
+  margin: 0;
+  overflow-x: hidden;         /* allow horizontal clipping if needed */
+  overflow-y: auto !important;/* enable page scroll */
+  -webkit-overflow-scrolling: touch;
+  background: #f0f9ff;        /* fallback page bg behind container */
+}
+
+/* --- Page layout --- */
 .clients-container {
-  min-height: 100vh;
-  height: 100vh; /* Ensures full viewport height */
-  background-color: #f0f9ff; /* Bright, soft blue background */
+  min-height: 100dvh;         /* grow with content; avoid fixed height */
+  background-color: #f0f9ff;  /* Bright, soft blue background */
   padding: 2rem;
-  margin-left: 2rem; /* Default offset for closed sidebar (2rem visible portion) */
-  transition: margin-left 0.3s ease-in-out; /* Smooth transition to match sidebar */
+  margin-left: 2rem;          /* Default offset for closed sidebar */
+  transition: margin-left 0.3s ease-in-out; /* Smooth with sidebar */
   display: flex;
   justify-content: center;
+  align-items: flex-start;     /* content starts at top */
+  overflow: visible;           /* allow content to extend */
 }
 
 .clients-container.shifted {
-  margin-left: 16rem; /* Offset for open sidebar (16rem width) */
+  margin-left: 16rem;          /* Offset for open sidebar (16rem width) */
 }
 
 .clients-card {
-  background-color: #ffffff; /* Clean white card */
+  background-color: #ffffff;   /* Clean white card */
   padding: 2rem;
   border-radius: 0.75rem;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1); /* Enhanced shadow for depth */
-  max-width: 64rem; /* 1024px for wider content */
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1); /* Depth */
+  max-width: 64rem;            /* 1024px */
   width: 100%;
   transition: transform 0.2s ease;
 }
 
 .clients-card:hover {
-  transform: translateY(-3px); /* Subtle lift effect on hover */
+  transform: translateY(-3px); /* Subtle lift on hover */
 }
 
+/* --- Typography --- */
 .clients-title,
 .clients-subtitle {
   font-size: 1.75rem;
   font-weight: 700;
-  color: #1e40af; /* Bright corporate blue */
+  color: #1e40af;              /* Bright corporate blue */
   margin-bottom: 1.25rem;
 }
 
@@ -45,6 +63,7 @@ body {
   margin-top: 2.5rem;
 }
 
+/* --- Forms & Inputs --- */
 .form-group,
 .search-filter-group {
   display: grid;
@@ -58,11 +77,11 @@ body {
 .search-input,
 .filter-select {
   padding: 0.75rem;
-  border: 1px solid #d1d5db; /* Gray-300 */
+  border: 1px solid #d1d5db;  /* Gray-300 */
   border-radius: 0.5rem;
   font-size: 1rem;
-  color: #1f2937; /* Dark gray for text */
-  background-color: #f9fafb; /* Light gray background */
+  color: #1f2937;             /* Dark gray text */
+  background-color: #f9fafb;  /* Light gray bg */
   transition: border-color 0.2s ease, box-shadow 0.2s ease, transform 0.2s ease;
 }
 
@@ -71,9 +90,9 @@ body {
 .search-input:focus,
 .filter-select:focus {
   outline: none;
-  border-color: #3b82f6; /* Bright blue */
+  border-color: #3b82f6;      /* Bright blue */
   box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.2); /* Blue focus ring */
-  transform: translateY(-2px); /* Subtle lift on focus */
+  transform: translateY(-2px);/* Subtle lift on focus */
 }
 
 .search-input,
@@ -81,10 +100,11 @@ body {
   min-width: 10rem;
 }
 
+/* --- Buttons --- */
 .form-button,
 .client-button {
   padding: 0.75rem 1.5rem;
-  background-color: #3b82f6; /* Bright blue */
+  background-color: #3b82f6;  /* Bright blue */
   color: #ffffff;
   font-size: 1rem;
   font-weight: 600;
@@ -99,14 +119,14 @@ body {
 
 .form-button:hover,
 .client-button:hover {
-  background-color: #2563eb; /* Darker blue on hover */
-  transform: translateY(-2px); /* Subtle lift effect */
+  background-color: #2563eb;  /* Darker blue on hover */
+  transform: translateY(-2px);
 }
 
 .form-button:focus,
 .client-button:focus {
   outline: none;
-  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.3); /* Blue focus ring */
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.3);
 }
 
 .form-button:active,
@@ -115,86 +135,88 @@ body {
 }
 
 .client-button.cancel {
-  background-color: #6b7280; /* Gray for cancel button */
+  background-color: #6b7280;  /* Gray for cancel button */
 }
 
 .client-button.cancel:hover {
-  background-color: #4b5563; /* Darker gray for cancel button */
+  background-color: #4b5563;  /* Darker gray on hover */
 }
 
 .client-button.cancel:focus {
-  box-shadow: 0 0 0 3px rgba(107, 114, 128, 0.3); /* Gray focus ring */
+  box-shadow: 0 0 0 3px rgba(107, 114, 128, 0.3);
 }
 
 .button-icon {
   font-size: 1rem;
 }
 
+/* --- List --- */
 .client-list {
-  max-height: 40vh; /* Fixed height for scrollable list */
-  overflow-y: auto; /* Enable vertical scrolling */
+  max-height: 40vh;           /* Scrollable list area */
+  overflow-y: auto;
   margin-top: 1.5rem;
-  padding-right: 0.5rem; /* Space for scrollbar */
-  scrollbar-width: thin; /* Firefox */
+  padding-right: 0.5rem;      /* Space for scrollbar */
+  scrollbar-width: thin;      /* Firefox */
   scrollbar-color: #3b82f6 #e5e7eb; /* Firefox */
 }
 
 .client-list::-webkit-scrollbar {
-  width: 8px; /* Chrome, Safari */
+  width: 8px;                 /* Chrome, Safari */
 }
 
 .client-list::-webkit-scrollbar-track {
-  background: #e5e7eb; /* Gray-200 track */
+  background: #e5e7eb;        /* Gray-200 */
   border-radius: 4px;
 }
 
 .client-list::-webkit-scrollbar-thumb {
-  background: #3b82f6; /* Blue thumb */
+  background: #3b82f6;        /* Blue thumb */
   border-radius: 4px;
 }
 
 .client-list::-webkit-scrollbar-thumb:hover {
-  background: #2563eb; /* Darker blue on hover */
+  background: #2563eb;        /* Darker on hover */
 }
 
 .client-item {
-  background-color: #f9fafb; /* Light gray for each client item */
+  background-color: #f9fafb;  /* Light gray for each client item */
   padding: 1.25rem;
   border-radius: 0.5rem;
   margin-bottom: 1rem;
-  border: 1px solid #e5e7eb; /* Gray-200 */
+  border: 1px solid #e5e7eb;  /* Gray-200 */
   transition: transform 0.2s ease, box-shadow 0.2s ease;
 }
 
 .client-item:hover {
-  transform: translateY(-3px); /* Subtle lift on hover */
+  transform: translateY(-3px);
   box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
 }
 
 .client-item.editing {
-  background-color: #eff6ff; /* Slightly blue tint when editing */
-  border-color: #3b82f6; /* Blue border when editing */
+  background-color: #eff6ff;  /* Slight blue tint when editing */
+  border-color: #3b82f6;      /* Blue border when editing */
 }
 
 .client-info {
   font-size: 1rem;
-  color: #1f2937; /* Dark gray for text */
+  color: #1f2937;             /* Dark gray for text */
   margin-bottom: 0.75rem;
 }
 
 .client-info strong {
-  color: #1e40af; /* Bright blue for client name */
+  color: #1e40af;             /* Bright blue for client name */
   font-weight: 600;
 }
 
 .no-results {
   font-size: 1rem;
-  color: #4b5563; /* Medium gray */
+  color: #4b5563;             /* Medium gray */
   text-align: center;
   margin-top: 1.5rem;
   font-style: italic;
 }
 
+/* --- Responsive --- */
 @media (max-width: 1024px) {
   .clients-card {
     max-width: 90%;
@@ -203,7 +225,7 @@ body {
 
 @media (max-width: 768px) {
   .clients-container {
-    margin-left: 2rem; /* Keep minimal offset for mobile */
+    margin-left: 2rem;        /* Keep minimal offset for mobile */
     padding: 1rem;
   }
 
@@ -222,7 +244,7 @@ body {
   }
 
   .client-list {
-    max-height: 50vh; /* Slightly taller on smaller screens */
+    max-height: 50vh;         /* Slightly taller on smaller screens */
   }
 }
 

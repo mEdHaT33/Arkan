@@ -1,10 +1,16 @@
+// components/DesignerManagerPage.jsx
 import React, { useEffect, useState } from "react";
 
 const DesignerManagerPage = () => {
   const [orders, setOrders] = useState([]);
   const [designers, setDesigners] = useState([]);
-  const [selectedStatus, setSelectedStatus] = useState("design phase");
-  const statuses = ["design phase", "waiting for 3d", "approved"];
+  const [selectedStatus, setSelectedStatus] = useState("quotation uploaded"); // start at queue needing assignment
+  // tabs manager typically acts on
+  const statuses = [
+    "quotation uploaded",
+    "design phase",
+    "approved", // manager can still view / reassign
+  ];
 
   useEffect(() => {
     fetchOrdersByStatus(selectedStatus);
@@ -12,34 +18,33 @@ const DesignerManagerPage = () => {
   }, [selectedStatus]);
 
   const fetchOrdersByStatus = async (status) => {
-    const res = await fetch(
-      `https://arkanaltafawuq.com/arkan-system/get_designer_orders.php?status=${status}`
-    );
-    const data = await res.json();
-    if (data.success) setOrders(data.orders);
+    try {
+      const res = await fetch(
+        `https://arkanaltafawuq.com/arkan-system/get_designer_orders.php?status=${encodeURIComponent(
+          status
+        )}`
+      );
+      const data = await res.json();
+      if (data.success) setOrders(data.orders);
+      else setOrders([]);
+    } catch (e) {
+      setOrders([]);
+    }
   };
 
   const fetchDesigners = async () => {
-    const res = await fetch(
-      "https://arkanaltafawuq.com/arkan-system/get_designers.php"
-    );
+    const res = await fetch("https://arkanaltafawuq.com/arkan-system/get_designers.php");
     const data = await res.json();
     if (data.success) setDesigners(data.users);
   };
 
   const assignDesigner = async (orderId, username) => {
     if (!username) return;
-    const res = await fetch(
-      "https://arkanaltafawuq.com/arkan-system/assign_designer.php",
-      {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          order_id: orderId,
-          designer_username: username,
-        }),
-      }
-    );
+    const res = await fetch("https://arkanaltafawuq.com/arkan-system/assign_designer.php", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ order_id: orderId, designer_username: username }),
+    });
     const data = await res.json();
     if (data.success) fetchOrdersByStatus(selectedStatus);
   };
@@ -48,9 +53,7 @@ const DesignerManagerPage = () => {
     <div style={{ padding: 20 }}>
       <h2>🎨 Designer Manager Page</h2>
 
-      <div
-        style={{ display: "flex", gap: 10, flexWrap: "wrap", marginBottom: 20 }}
-      >
+      <div style={{ display: "flex", gap: 10, flexWrap: "wrap", marginBottom: 20 }}>
         {statuses.map((status) => (
           <button
             key={status}
@@ -72,11 +75,7 @@ const DesignerManagerPage = () => {
       {orders.length === 0 ? (
         <p>No orders found for this status.</p>
       ) : (
-        <table
-          border="1"
-          cellPadding="10"
-          style={{ width: "100%", textAlign: "left" }}
-        >
+        <table border="1" cellPadding="10" style={{ width: "100%", textAlign: "left" }}>
           <thead>
             <tr>
               <th>ID</th>
@@ -95,9 +94,7 @@ const DesignerManagerPage = () => {
                 <td>
                   <select
                     value={order.designer_assigned_to || ""}
-                    onChange={(e) =>
-                      assignDesigner(order.order_id, e.target.value)
-                    }
+                    onChange={(e) => assignDesigner(order.order_id, e.target.value)}
                   >
                     <option value="">Select</option>
                     {designers.map((d) => (

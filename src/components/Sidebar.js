@@ -1,56 +1,74 @@
-import React, { useState, useEffect } from "react";
-import { Link } from "react-router-dom";
+// components/Sidebar.jsx
+import React, { useEffect, useState } from "react";
+import { Link, useNavigate } from "react-router-dom";
 import "../styles/Sidebar.css";
+import {
+  Users,
+  FileText,
+  Package,
+  DollarSign,
+  Palette,
+  Check,
+  Pencil,
+  LogOut,
+  ClipboardList,
+  ShoppingCart,
+  DollarSignIcon,
+  BadgeDollarSign,
+} from "lucide-react";
 
-const Sidebar = ({ role }) => {
+const Sidebar = ({ role: roleProp }) => {
   const [isOpen, setIsOpen] = useState(false);
   const [isHovered, setIsHovered] = useState(false);
+  const navigate = useNavigate();
 
-  const handleMouseEnter = () => {
-    setIsHovered(true);
-  };
+  // Get role from props or localStorage
+  const role = roleProp || localStorage.getItem("role") || "";
 
-  const handleMouseLeave = () => {
-    setIsHovered(false);
-  };
-
-  const toggleSidebar = () => {
-    setIsOpen(!isOpen);
-  };
+  const handleMouseEnter = () => setIsHovered(true);
+  const handleMouseLeave = () => setIsHovered(false);
+  const toggleSidebar = () => setIsOpen((v) => !v);
 
   useEffect(() => {
-    if (isOpen) {
-      setIsHovered(true);
-    }
+    if (isOpen) setIsHovered(true);
   }, [isOpen]);
+
+  // Logout handler
+  const handleLogout = () => {
+    localStorage.clear();
+    navigate("/login");
+  };
 
   const menuItems = {
     admin: [
-      { to: "/manage-users", label: "Manage Users", icon: "👥" },
-      { to: "/clients", label: "Clients/Vendors", icon: "📇" },
-      { to: "/orders", label: "Orders", icon: "🧾" },
-      { to: "/warehouse", label: "Warehouse", icon: "📦" },
-      { to: "/finance", label: "Finance", icon: "💵" },
+      { to: "/manage-users", label: "Manage Users", icon: <Users size={18} /> },
+      { to: "/clients", label: "Clients/Vendors", icon: <FileText size={18} /> },
+      { to: "/orders", label: "Orders", icon: <ClipboardList size={18} /> },
+      { to: "/warehouse", label: "Warehouse", icon: <Package size={18} /> },
+      { to: "/finance", label: "Finance", icon: <DollarSign size={18} /> },
     ],
     "account manager": [
-      { to: "/create-order", label: "Manage Orders", icon: "🧾" },
-      { to: "/clients", label: "Clients", icon: "📇" },
-      { to: "/order-list", label: "Order List", icon: "📇" },
+      { to: "/create-order", label: "Manage Orders", icon: <ShoppingCart size={18} /> },
+      { to: "/clients", label: "Clients", icon: <FileText size={18} /> },
+      { to: "/order-list", label: "Order List", icon: <ClipboardList size={18} /> },
     ],
     "designer manager": [
-      { to: "/designer-manager", label: "Designer Manager", icon: "🎨" },
-      {
-        to: "/designer-manager-approval",
-        label: "Manager Approvals",
-        icon: "🎨",
-      },
+      { to: "/designer-manager", label: "Designer Manager", icon: <Palette size={18} /> },
+      { to: "/designer-manager-approval", label: "Manager Approvals", icon: <Check size={18} /> },
     ],
-    designer: [{ to: "/designer-team", label: "Designer Team", icon: "✏️" }],
+    designer: [
+      { to: "/designer-team", label: "Designer Team", icon: <Pencil size={18} /> },
+    ],
     finance: [
-      { to: "/finance", label: "Finance", icon: "💵" },
-      { to: "/receipts", label: "All Receipts", icon: "🧾" },
+      { to: "/finance", label: "Finance", icon: <BadgeDollarSign size={18} /> },
+      { to: "/receipts", label: "All Receipts", icon: <ClipboardList size={18} /> },
+      { to: "/warehouse", label: "Warehouse", icon: <Package size={18} /> },
+       { to: "/financebalance", label: "Balance", icon: <DollarSignIcon size={18} /> },
+
     ],
   };
+
+  const items = menuItems[role] || [];
 
   return (
     <>
@@ -79,21 +97,34 @@ const Sidebar = ({ role }) => {
               </svg>
             </button>
           </div>
-          <ul className="sidebar-menu">
-            {menuItems[role]?.map((item, index) => (
-              <li key={index}>
-                <Link to={item.to} className="menu-item">
-                  <span className="menu-icon">{item.icon}</span>
-                  {item.label}
-                </Link>
-              </li>
-            ))}
-          </ul>
+
+          {items.length === 0 ? (
+            <div style={{ padding: "10px", color: "#999" }}>
+              No menu for role: <strong>{role || "unknown"}</strong>
+            </div>
+          ) : (
+            <ul className="sidebar-menu">
+              {items.map((item, index) => (
+                <li key={index}>
+                  <Link to={item.to} className="menu-item">
+                    <span className="menu-icon">{item.icon}</span>
+                    {item.label}
+                  </Link>
+                </li>
+              ))}
+            </ul>
+          )}
+
+          {/* Logout Button */}
+          <div className="sidebar-footer">
+            <button onClick={handleLogout} className="menu-item logout-button">
+              <LogOut size={18} className="menu-icon" />
+              Logout
+            </button>
+          </div>
         </div>
       </div>
-      <div
-        className={`main-content ${isHovered || isOpen ? "shifted" : ""}`}
-      ></div>
+      <div className={`main-content ${isHovered || isOpen ? "shifted" : ""}`} />
     </>
   );
 };

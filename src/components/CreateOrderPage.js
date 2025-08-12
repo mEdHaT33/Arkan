@@ -1,16 +1,14 @@
+// components/CreateOrderPage.jsx
 import React, { useEffect, useState } from "react";
 import "../styles/CreateOrderPage.css";
 
 const CreateOrderPage = ({ isSidebarOpen }) => {
   const [clients, setClients] = useState([]);
-  const [orderData, setOrderData] = useState({
-    client_id: "",
-    has_3d: false,
-  });
+  const [orderData, setOrderData] = useState({ client_id: "", has_3d: false });
   const [files, setFiles] = useState({
     brief_file: null,
     quotation_file: null,
-    production_file: null,
+    production_file: null,  // (link is preferred later by team; AM can still upload if needed)
     final_images: null,
     invoice_file: null,
     d3_file: null,
@@ -24,9 +22,7 @@ const CreateOrderPage = ({ isSidebarOpen }) => {
   useEffect(() => {
     const fetchClients = async () => {
       try {
-        const response = await fetch(
-          "https://arkanaltafawuq.com/arkan-system/get_clients.php"
-        );
+        const response = await fetch("https://arkanaltafawuq.com/arkan-system/get_clients.php");
         const data = await response.json();
         if (data.success) setClients(data.clients);
       } catch (err) {
@@ -54,9 +50,7 @@ const CreateOrderPage = ({ isSidebarOpen }) => {
     });
     setStatus("");
     setError("");
-    document.querySelectorAll('input[type="file"]').forEach((input) => {
-      input.value = "";
-    });
+    document.querySelectorAll('input[type="file"]').forEach((input) => (input.value = ""));
   };
 
   const handleSubmit = () => {
@@ -90,23 +84,17 @@ const CreateOrderPage = ({ isSidebarOpen }) => {
     formData.append("created_by", localStorage.getItem("username"));
 
     for (const key in files) {
-      if (files[key]) {
-        formData.append(key, files[key]);
-      }
+      if (files[key]) formData.append(key, files[key]);
     }
 
     try {
-      const response = await fetch(
-        "https://arkanaltafawuq.com/arkan-system/create_order.php",
-        {
-          method: "POST",
-          body: formData,
-        }
-      );
+      const response = await fetch("https://arkanaltafawuq.com/arkan-system/create_order.php", {
+        method: "POST",
+        body: formData,
+      });
 
       const text = await response.text();
       console.log("🔍 Raw response:", text);
-
       const data = JSON.parse(text);
 
       if (data.success) {
@@ -127,26 +115,19 @@ const CreateOrderPage = ({ isSidebarOpen }) => {
   return (
     <div className={`order-page ${isSidebarOpen ? "shifted" : ""}`}>
       <h2 className="order-title">Create New Order</h2>
-
       {error && <div className="error-message">❌ {error}</div>}
 
       <div className="form-group">
         <div className="form-field">
-          <label className="form-label">
-            <span className="field-icon">👤</span> Select Client
-          </label>
+          <label className="form-label"><span className="field-icon">👤</span> Select Client</label>
           <select
             value={orderData.client_id}
-            onChange={(e) =>
-              setOrderData({ ...orderData, client_id: e.target.value })
-            }
+            onChange={(e) => setOrderData({ ...orderData, client_id: e.target.value })}
             className="form-select"
           >
             <option value="">-- Select Client --</option>
             {clients.map((c) => (
-              <option key={c.id} value={c.id}>
-                {c.name} ({c.email})
-              </option>
+              <option key={c.id} value={c.id}>{c.name} ({c.email})</option>
             ))}
           </select>
         </div>
@@ -156,9 +137,7 @@ const CreateOrderPage = ({ isSidebarOpen }) => {
             <input
               type="checkbox"
               checked={orderData.has_3d}
-              onChange={(e) =>
-                setOrderData({ ...orderData, has_3d: e.target.checked })
-              }
+              onChange={(e) => setOrderData({ ...orderData, has_3d: e.target.checked })}
               className="form-checkbox"
             />
             Client has 3D ready
@@ -166,105 +145,55 @@ const CreateOrderPage = ({ isSidebarOpen }) => {
         </div>
 
         <div className="form-field">
-          <label className="form-label">
-            <span className="field-icon">📄</span> Upload Brief File
-          </label>
-          <input
-            type="file"
-            name="brief_file"
-            onChange={handleFileChange}
-            className="form-input"
-          />
+          <label className="form-label"><span className="field-icon">📄</span> Upload Brief File</label>
+          <input type="file" name="brief_file" onChange={handleFileChange} className="form-input" />
         </div>
-
-        {orderData.has_3d ? (
+ <div className="form-field">
+            <label className="form-label"><span className="field-icon">💸</span> Upload Quotation File</label>
+            <input type="file" name="quotation_file" onChange={handleFileChange} className="form-input" />
+          </div>
+           <div className="form-field">
+            <label className="form-label"><span className="field-icon">🖼️</span> Upload 3D File</label>
+            <input type="file" name="d3_file" onChange={handleFileChange} className="form-input" />
+          </div>
+        {/* {orderData.has_3d ? (
           <div className="form-field">
-            <label className="form-label">
-              <span className="field-icon">💸</span> Upload Quotation File
-            </label>
-            <input
-              type="file"
-              name="quotation_file"
-              onChange={handleFileChange}
-              className="form-input"
-            />
+            <label className="form-label"><span className="field-icon">💸</span> Upload Quotation File</label>
+            <input type="file" name="quotation_file" onChange={handleFileChange} className="form-input" />
           </div>
         ) : (
           <div className="form-field">
-            <label className="form-label">
-              <span className="field-icon">🖼️</span> Upload 3D File
-            </label>
-            <input
-              type="file"
-              name="d3_file"
-              onChange={handleFileChange}
-              className="form-input"
-            />
+            <label className="form-label"><span className="field-icon">🖼️</span> Upload 3D File</label>
+            <input type="file" name="d3_file" onChange={handleFileChange} className="form-input" />
           </div>
-        )}
+        )} */}
 
         <div className="form-field">
-          <label className="form-label">
-            <span className="field-icon">🖌️</span> Upload Prova File
-          </label>
-          <input
-            type="file"
-            name="prova_file"
-            onChange={handleFileChange}
-            className="form-input"
-          />
+          <label className="form-label"><span className="field-icon">🖌️</span> Upload Prova File</label>
+          <input type="file" name="prova_file" onChange={handleFileChange} className="form-input" />
         </div>
 
         <div className="form-field">
-          <label className="form-label">
-            <span className="field-icon">🏭</span> Upload Production File
-          </label>
-          <input
-            type="file"
-            name="production_file"
-            onChange={handleFileChange}
-            className="form-input"
-          />
+          <label className="form-label"><span className="field-icon">🏭</span> Upload Production File</label>
+          <input type="file" name="production_file" onChange={handleFileChange} className="form-input" />
         </div>
 
         <div className="form-field">
-          <label className="form-label">
-            <span className="field-icon">📸</span> Upload Final Images
-          </label>
-          <input
-            type="file"
-            name="final_images"
-            onChange={handleFileChange}
-            className="form-input"
-          />
+          <label className="form-label"><span className="field-icon">📸</span> Upload Final Images</label>
+          <input type="file" name="final_images" onChange={handleFileChange} className="form-input" />
         </div>
 
         <div className="form-field">
-          <label className="form-label">
-            <span className="field-icon">💳</span> Upload Invoice File
-          </label>
-          <input
-            type="file"
-            name="invoice_file"
-            onChange={handleFileChange}
-            className="form-input"
-          />
+          <label className="form-label"><span className="field-icon">💳</span> Upload Invoice File</label>
+          <input type="file" name="invoice_file" onChange={handleFileChange} className="form-input" />
         </div>
 
         <div className="form-buttons">
-          <button
-            onClick={handleSubmit}
-            disabled={loading}
-            className="form-button submit-button"
-          >
+          <button onClick={handleSubmit} disabled={loading} className="form-button submit-button">
             <span className="button-icon">📦</span>
             {loading ? <span className="spinner"></span> : "Create Order"}
           </button>
-          <button
-            onClick={handleReset}
-            disabled={loading}
-            className="form-button reset-button"
-          >
+          <button onClick={handleReset} disabled={loading} className="form-button reset-button">
             <span className="button-icon">🔄</span> Reset
           </button>
         </div>
@@ -278,16 +207,10 @@ const CreateOrderPage = ({ isSidebarOpen }) => {
             <h3 className="modal-title">Confirm Order Submission</h3>
             <p>Are you sure you want to create this order?</p>
             <div className="modal-buttons">
-              <button
-                onClick={confirmSubmit}
-                className="form-button submit-button"
-              >
+              <button onClick={confirmSubmit} className="form-button submit-button">
                 <span className="button-icon">✔️</span> Confirm
               </button>
-              <button
-                onClick={() => setShowModal(false)}
-                className="form-button cancel-button"
-              >
+              <button onClick={() => setShowModal(false)} className="form-button cancel-button">
                 <span className="button-icon">✖️</span> Cancel
               </button>
             </div>

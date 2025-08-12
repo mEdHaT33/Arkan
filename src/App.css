@@ -36,3 +36,21 @@
     transform: rotate(360deg);
   }
 }
+/* Force page to be scrollable */
+html, body, #root {
+  min-height: 100%;
+  height: auto !important;
+  overflow-y: auto !important;
+}
+
+/* If you previously hid vertical scroll globally, undo it */
+html, body {
+  overflow-x: hidden;    /* keep horizontal hidden if you want */
+  /* DO NOT set overflow-y: hidden here */
+}
+
+/* Common full-viewport sections: allow content to grow past the fold */
+.main, main, .page, .container, .wrapper {
+  min-height: 100dvh;    /* better than 100vh on mobile Safari */
+  overflow: visible;
+}
