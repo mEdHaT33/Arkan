@@ -4,9 +4,10 @@ import React, { useEffect, useState } from "react";
 const DesignerManagerPage = () => {
   const [orders, setOrders] = useState([]);
   const [designers, setDesigners] = useState([]);
-  const [selectedStatus, setSelectedStatus] = useState("quotation uploaded"); // start at queue needing assignment
+  const [selectedStatus, setSelectedStatus] = useState("waiting for 3d"); // start at queue needing assignment
   // tabs manager typically acts on
   const statuses = [
+    "waiting for 3d",
     "quotation uploaded",
     "design phase",
     "approved", // manager can still view / reassign
@@ -15,7 +16,7 @@ const DesignerManagerPage = () => {
   useEffect(() => {
     fetchOrdersByStatus(selectedStatus);
     fetchDesigners();
-  }, [selectedStatus]);
+  }, [selectedStatus]); 
 
   const fetchOrdersByStatus = async (status) => {
     try {

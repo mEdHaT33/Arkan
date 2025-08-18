@@ -19,6 +19,16 @@ const WarehousePage = () => {
   const [items, setItems] = useState([]);
   const [loading, setLoading] = useState(false);
 
+  // STOCK filters (NEW)
+  const [stockFilters, setStockFilters] = useState({
+    q: "",             // text search (code/name/desc/location)
+    category: "",      // exact match
+    location: "",      // exact match
+    lowOnly: false,    // only items below/at reorder level
+    minQty: "",        // >=
+    maxQty: "",        // <=
+  });
+
   // Add Item form
   const [newItem, setNewItem] = useState({
     item_code: "",
@@ -208,7 +218,6 @@ const WarehousePage = () => {
 
   const quickAdjust = async (item_id, delta) => {
     if (delta > 0) {
-      // Use IN endpoint for +1
       await fetch(`${API}/warehouse_add_in.php`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -223,7 +232,6 @@ const WarehousePage = () => {
         }),
       });
     } else {
-      // Use OUT endpoint for -1
       await fetch(`${API}/warehouse_add_out.php`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -241,27 +249,104 @@ const WarehousePage = () => {
     if (tab === "movements") { fetchIn(); fetchOut(); }
   };
 
-  // const deleteItem = async (item_id) => {
-  //   if (!window.confirm("Delete this item and all its movements?")) return;
-  //   const res = await fetch(`${API}/warehouse_delete_item.php`, {
-  //     method: "POST",
-  //     headers: { "Content-Type": "application/json" },
-  //     body: JSON.stringify({ id: item_id }),
-  //   });
-  //   const data = await res.json();
-  //   if (data.success) {
-  //     fetchItems();
-  //     if (tab === "movements") { fetchIn(); fetchOut(); }
-  //   } else {
-  //     alert("❌ " + (data.message || "Delete failed"));
-  //   }
-  // };
-
   const itemsById = useMemo(() => {
     const map = new Map();
     items.forEach((i) => map.set(String(i.item_id), i));
     return map;
   }, [items]);
+
+  // === STOCK: derived UI data (NEW) ===
+  const categoryOptions = useMemo(() => {
+    const set = new Set(items.map(i => (i.category || "").trim()).filter(Boolean));
+    return Array.from(set).sort();
+  }, [items]);
+
+  const locationOptions = useMemo(() => {
+    const set = new Set(items.map(i => (i.location || "").trim()).filter(Boolean));
+    return Array.from(set).sort();
+  }, [items]);
+
+  const filteredItems = useMemo(() => {
+    const q = stockFilters.q.trim().toLowerCase();
+    const cat = stockFilters.category.trim().toLowerCase();
+    const loc = stockFilters.location.trim().toLowerCase();
+    const min = stockFilters.minQty === "" ? null : Number(stockFilters.minQty);
+    const max = stockFilters.maxQty === "" ? null : Number(stockFilters.maxQty);
+
+    return items.filter(it => {
+      const qty = Number(it.quantity || 0);
+      const reorder = Number(it.reorder_level || 0);
+
+      if (stockFilters.lowOnly && !(qty <= reorder)) return false;
+
+      if (min !== null && !(qty >= min)) return false;
+      if (max !== null && !(qty <= max)) return false;
+
+      if (cat && String(it.category || "").toLowerCase() !== cat) return false;
+      if (loc && String(it.location || "").toLowerCase() !== loc) return false;
+
+      if (q) {
+        const hay = [
+          it.item_code,
+          it.item_name,
+          it.description,
+          it.location,
+          it.category,
+        ].map(v => String(v || "").toLowerCase()).join(" ");
+        if (!hay.includes(q)) return false;
+      }
+
+      return true;
+    });
+  }, [items, stockFilters]);
+
+  // Export current filtered stock to CSV (NEW)
+  const exportStockCSV = () => {
+    const headers = [
+      "ID","Code","Name","Quantity","Unit","Reorder Level","Location","Category",
+      "Purchase Price","Selling Price","Supplier ID","Description"
+    ];
+
+    const rows = filteredItems.map(it => ([
+      it.item_id ?? "",
+      it.item_code ?? "",
+      it.item_name ?? "",
+      it.quantity ?? "",
+      it.unit ?? "",
+      it.reorder_level ?? "",
+      it.location ?? "",
+      it.category ?? "",
+      it.purchase_price ?? "",
+      it.selling_price ?? "",
+      it.supplier_id ?? "",
+      (it.description ?? "").replace(/\r?\n/g, " "),
+    ]));
+
+    const escape = (v) => {
+      const s = String(v ?? "");
+      // quote if contains quotes, commas, or newlines
+      if (/[",\n]/.test(s)) {
+        return `"${s.replace(/"/g, '""')}"`;
+      }
+      return s;
+    };
+
+    const csv = [headers, ...rows].map(r => r.map(escape).join(",")).join("\n");
+    const blob = new Blob(["\uFEFF" + csv], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    const today = new Date().toISOString().slice(0,10);
+    a.download = `warehouse_stock_${today}.csv`;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    URL.revokeObjectURL(url);
+  };
+
+  const clearStockFilters = () => {
+    setStockFilters({ q: "", category: "", location: "", lowOnly: false, minQty: "", maxQty: "" });
+  };
 
   return (
     <div style={{ padding: 20 }}>
@@ -287,17 +372,90 @@ const WarehousePage = () => {
       {/* STOCK */}
       {tab === "stock" && (
         <div>
-          <div style={{ marginBottom: 10 }}>
+          {/* Toolbar */}
+          <div style={{ display: "flex", gap: 10, marginBottom: 10, flexWrap: "wrap" }}>
             <button
               style={{ ...tiny.btn, background: "#f3f3f3", color: "#000" }}
               onClick={fetchItems}
               disabled={loading}
+              title="Refresh items"
             >
               {loading ? "Loading..." : "Refresh"}
             </button>
+            {/* Export (NEW) */}
+            <button
+              style={{ ...tiny.btn, background: "#333", color: "#fff" }}
+              onClick={exportStockCSV}
+              title="Export current view to CSV"
+            >
+              ⭳ Export CSV
+            </button>
+            <div style={{ alignSelf: "center", color: "#555" }}>
+              Showing <b>{filteredItems.length}</b> of <b>{items.length}</b> items
+            </div>
           </div>
 
-          <div style={{ overflowX: "auto" }}>
+          {/* Filters (NEW) */}
+          <div style={{ ...tiny.card, display: "grid", gap: 10, gridTemplateColumns: "2fr 1fr 1fr 1fr 1fr auto" }}>
+            <input
+              style={tiny.input}
+              placeholder="Search (code, name, description, location)"
+              value={stockFilters.q}
+              onChange={(e) => setStockFilters({ ...stockFilters, q: e.target.value })}
+            />
+            <select
+              style={tiny.input}
+              value={stockFilters.category}
+              onChange={(e) => setStockFilters({ ...stockFilters, category: e.target.value })}
+            >
+              <option value="">All categories</option>
+              {categoryOptions.map(c => <option key={c} value={c}>{c}</option>)}
+            </select>
+            <select
+              style={tiny.input}
+              value={stockFilters.location}
+              onChange={(e) => setStockFilters({ ...stockFilters, location: e.target.value })}
+            >
+              <option value="">All locations</option>
+              {locationOptions.map(l => <option key={l} value={l}>{l}</option>)}
+            </select>
+            <input
+              style={tiny.input}
+              type="number"
+              step="0.01"
+              placeholder="Min qty"
+              value={stockFilters.minQty}
+              onChange={(e) => setStockFilters({ ...stockFilters, minQty: e.target.value })}
+            />
+            <input
+              style={tiny.input}
+              type="number"
+              step="0.01"
+              placeholder="Max qty"
+              value={stockFilters.maxQty}
+              onChange={(e) => setStockFilters({ ...stockFilters, maxQty: e.target.value })}
+            />
+            <label style={{ display: "flex", alignItems: "center", gap: 6 }}>
+              <input
+                type="checkbox"
+                checked={stockFilters.lowOnly}
+                onChange={(e) => setStockFilters({ ...stockFilters, lowOnly: e.target.checked })}
+              />
+              Low only
+            </label>
+            <div style={{ gridColumn: "1 / -1" }}>
+              <button
+                style={{ ...tiny.btn, background: "#f3f3f3" }}
+                onClick={clearStockFilters}
+                title="Clear all filters"
+              >
+                Clear Filters
+              </button>
+            </div>
+          </div>
+
+          {/* Table */}
+          <div style={{ overflowX: "auto", marginTop: 10 }}>
             <table border="1" cellPadding="8" width="100%">
               <thead>
                 <tr>
@@ -313,7 +471,7 @@ const WarehousePage = () => {
                 </tr>
               </thead>
               <tbody>
-                {items.map((it) => {
+                {filteredItems.map((it) => {
                   const low = Number(it.quantity) <= Number(it.reorder_level || 0);
                   return (
                     <tr key={it.item_id} style={low ? { background: "#fff4f4" } : undefined}>
@@ -338,18 +496,10 @@ const WarehousePage = () => {
                           -1
                         </button>
                       </td>
-                      {/* <td>
-                        <button
-                          style={{ ...tiny.btn, background: "#fff", color: "#c00", border: "1px solid #ddd" }}
-                          onClick={() => deleteItem(it.item_id)}
-                        >
-                          Delete
-                        </button>
-                      </td> */}
                     </tr>
                   );
                 })}
-                {items.length === 0 && (
+                {filteredItems.length === 0 && (
                   <tr>
                     <td colSpan="9">No items</td>
                   </tr>

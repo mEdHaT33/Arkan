@@ -43,9 +43,19 @@ const Sidebar = ({ role: roleProp }) => {
     admin: [
       { to: "/manage-users", label: "Manage Users", icon: <Users size={18} /> },
       { to: "/clients", label: "Clients/Vendors", icon: <FileText size={18} /> },
-      { to: "/orders", label: "Orders", icon: <ClipboardList size={18} /> },
       { to: "/warehouse", label: "Warehouse", icon: <Package size={18} /> },
-      { to: "/finance", label: "Finance", icon: <DollarSign size={18} /> },
+
+      { to: "/finance", label: "Finance", icon: <BadgeDollarSign size={18} /> },
+      { to: "/all-receipts", label: "All Receipts", icon: <ClipboardList size={18} /> },
+      { to: "/financebalance", label: "Balance", icon: <DollarSignIcon size={18} /> },
+            { to: "/designer-team", label: "Designer Team", icon: <Pencil size={18} /> },
+
+      { to: "/designer-manager", label: "Designer Manager", icon: <Palette size={18} /> },
+      { to: "/designer-manager-approval", label: "Manager Approvals", icon: <Check size={18} /> },
+
+      { to: "/create-order", label: "Manage Orders", icon: <ShoppingCart size={18} /> },
+      { to: "/order-list", label: "Order List", icon: <ClipboardList size={18} /> },
+
     ],
     "account manager": [
       { to: "/create-order", label: "Manage Orders", icon: <ShoppingCart size={18} /> },
@@ -61,9 +71,9 @@ const Sidebar = ({ role: roleProp }) => {
     ],
     finance: [
       { to: "/finance", label: "Finance", icon: <BadgeDollarSign size={18} /> },
-      { to: "/receipts", label: "All Receipts", icon: <ClipboardList size={18} /> },
+      { to: "/all-receipts", label: "All Receipts", icon: <ClipboardList size={18} /> },
       { to: "/warehouse", label: "Warehouse", icon: <Package size={18} /> },
-       { to: "/financebalance", label: "Balance", icon: <DollarSignIcon size={18} /> },
+      { to: "/financebalance", label: "Balance", icon: <DollarSignIcon size={18} /> },
 
     ],
   };

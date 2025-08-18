@@ -4,66 +4,92 @@ import React, { useEffect, useState } from "react";
 const API_BASE = "https://arkanaltafawuq.com/arkan-system"; // no trailing slash
 const api = (p) => `${API_BASE}/${String(p).replace(/^\/+/, "")}`;
 
-// Only these four stages
-const EDITABLE_STATUSES = [
+const STATUSES = [
+  "All",
   "quotation uploaded",
   "waiting for 3d",
   "design phase",
   "approved",
 ];
 
+const normalize = (v) => String(v || "").trim().toLowerCase();
+
 const DesignerTeamPage = () => {
   const [orders, setOrders] = useState([]);
-  const [selectedTab, setSelectedTab] = useState("design phase");
+  const [selectedStatus, setSelectedStatus] = useState("design phase");
   const [username, setUsername] = useState("");
-  const [role, setRole] = useState("");
   const [error, setError] = useState("");
 
-  useEffect(() => {
-    const storedUsername = localStorage.getItem("username") || "";
-    const storedRole = localStorage.getItem("role") || "";
-    setUsername(storedUsername);
-    setRole(storedRole);
-    if (storedUsername) fetchOrders(storedUsername);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [selectedTab]);
+  // Resolve username from either "username" or "loggedUser"
+  const resolveUsername = () => {
+    const u1 = localStorage.getItem("username") || "";
+    if (u1) return u1;
+    try {
+      const obj = JSON.parse(localStorage.getItem("loggedUser") || "{}");
+      if (obj && obj.username) return obj.username;
+    } catch {}
+    return "";
+  };
 
-  const fetchOrders = async (user) => {
+  useEffect(() => {
+    const u = resolveUsername();
+    setUsername(u);
+    if (u) fetchOrders(u, selectedStatus);
+    else {
+      setOrders([]);
+      setError("No username in localStorage. Please ensure login sets either 'username' or 'loggedUser.username'.");
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedStatus]);
+
+  const fetchOrders = async (user, status) => {
     try {
       setError("");
       const res = await fetch(
         api(`get_designer_team_orders.php?username=${encodeURIComponent(user)}`)
       );
       const data = await res.json();
-      if (data.success) {
-        const list = Array.isArray(data.orders) ? data.orders : [];
-        // keep only assigned + one of the 4 statuses + matches selected tab
-        const relevant = list.filter((o) => {
-          const s = (o.status || "").toLowerCase();
-          return EDITABLE_STATUSES.includes(s) && s === selectedTab.toLowerCase();
-        });
-        setOrders(relevant);
-      } else {
+
+      if (!data?.success) {
         setOrders([]);
-        setError(data.message || "No orders found.");
+        setError(data?.message || "No orders found.");
+        return;
       }
-    } catch (err) {
-      console.error("Failed to fetch orders:", err);
+
+      const list = Array.isArray(data.orders) ? data.orders : [];
+      const wanted = normalize(status);
+
+      // Normalize each order status once
+      const filtered =
+        wanted === "all"
+          ? list
+          : list.filter((o) => normalize(o.status) === wanted);
+
+      setOrders(filtered);
+      if (filtered.length === 0 && list.length > 0 && wanted !== "all") {
+        // Helpful hint if the tab is empty but API has data
+        setError(
+          `No orders in "${status}". Try other tabs or "All" to verify data is loading.`
+        );
+      }
+    } catch (e) {
+      console.error("Failed to fetch orders:", e);
       setOrders([]);
       setError("Failed to fetch orders.");
     }
   };
 
-  const getFieldForTab = () => {
-    const tab = selectedTab.toLowerCase();
-    if (tab === "quotation uploaded" || tab === "waiting for 3d") return "d3_file";
-    if (tab === "design phase") return "prova_file";
-    if (tab === "approved") return "production_file";
+  const fieldForStatus = (status) => {
+    const s = normalize(status);
+    if (s === "quotation uploaded" || s === "waiting for 3d") return "d3_file";
+    if (s === "design phase") return "prova_file";
+    if (s === "approved") return "production_file";
     return null;
   };
 
-  const handleFileUpload = async (orderId, field, file) => {
-    if (!file || !field) return;
+  const handleUpload = async (orderId, field, file) => {
+    if (!file || !field || !username) return;
+
     const formData = new FormData();
     formData.append("order_id", orderId);
     formData.append("field", field);
@@ -75,48 +101,49 @@ const DesignerTeamPage = () => {
         method: "POST",
         body: formData,
       });
-      const raw = await res.text();
-      let data;
-      try { data = JSON.parse(raw); } catch { data = null; }
+      const text = await res.text();
+      let data = null;
+      try { data = JSON.parse(text); } catch {}
       if (res.ok && data?.success) {
-        fetchOrders(username); // refresh
+        fetchOrders(username, selectedStatus);
       } else {
-        const msg = (data && data.message) ? data.message : raw.slice(0, 300) || "Upload failed.";
-        alert(`Upload failed: ${msg}`);
+        alert(`Upload failed: ${(data && data.message) || text.slice(0, 300) || "Unknown error"}`);
       }
-    } catch (err) {
-      console.error("Upload error:", err);
+    } catch (e) {
+      console.error("Upload error:", e);
       alert("Upload error.");
     }
   };
+
+  const fieldForCurrentTab = fieldForStatus(selectedStatus);
 
   return (
     <div style={{ padding: 20 }}>
       <h2>🧑‍🎨 Designer Team Page</h2>
       <p>
-        Logged in as: <strong>{username}</strong> {role ? `(Role: ${role})` : ""}
+        Logged in as: <strong>{username || "—"}</strong>
       </p>
 
-      <div style={{ display: "flex", gap: 10, marginBottom: 20, flexWrap: "wrap" }}>
-        {EDITABLE_STATUSES.map((tab) => (
+      <div style={{ display: "flex", gap: 10, flexWrap: "wrap", marginBottom: 20 }}>
+        {STATUSES.map((s) => (
           <button
-            key={tab}
-            onClick={() => setSelectedTab(tab)}
+            key={s}
+            onClick={() => setSelectedStatus(s)}
             style={{
               padding: "8px 15px",
-              background: selectedTab === tab ? "#333" : "#ccc",
-              color: selectedTab === tab ? "white" : "black",
+              background: selectedStatus === s ? "#333" : "#ccc",
+              color: selectedStatus === s ? "white" : "black",
               borderRadius: 4,
               border: "none",
               cursor: "pointer",
             }}
-            title={`Show "${tab}" assigned to you`}
+            title={`Show "${s}" assigned to you`}
           >
-            {tab}
+            {s}
           </button>
         ))}
         <button
-          onClick={() => username && fetchOrders(username)}
+          onClick={() => username && fetchOrders(username, selectedStatus)}
           style={{
             padding: "8px 15px",
             background: "#0ea5e9",
@@ -159,28 +186,25 @@ const DesignerTeamPage = () => {
             </tr>
           </thead>
           <tbody>
-            {orders.map((order) => {
-              const field = getFieldForTab();
-              return (
-                <tr key={order.order_id}>
-                  <td>{order.order_id}</td>
-                  <td>{order.status}</td>
-                  <td>
-                    {field ? (
-                      <input
-                        type="file"
-                        onChange={(e) =>
-                          handleFileUpload(order.order_id, field, e.target.files?.[0])
-                        }
-                      />
-                    ) : (
-                      "-"
-                    )}
-                  </td>
-                  <td>{order.created_at || "N/A"}</td>
-                </tr>
-              );
-            })}
+            {orders.map((o) => (
+              <tr key={o.order_id}>
+                <td>{o.order_id}</td>
+                <td>{o.status}</td>
+                <td>
+                  {fieldForCurrentTab ? (
+                    <input
+                      type="file"
+                      onChange={(e) =>
+                        handleUpload(o.order_id, fieldForCurrentTab, e.target.files?.[0])
+                      }
+                    />
+                  ) : (
+                    "-"
+                  )}
+                </td>
+                <td>{o.created_at || "N/A"}</td>
+              </tr>
+            ))}
           </tbody>
         </table>
       )}

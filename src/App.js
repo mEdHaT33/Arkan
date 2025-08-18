@@ -23,8 +23,8 @@ import DesignerTeamPage from "./components/DesignerTeamPage";
 import DesignerManagerAcceptancePage from "./components/DesignerManagerAcceptancePage";
 import WarehousePage from "./components/WarehousePage";
 import FinanceBalance from "./components/FinanceBalance";
-
-
+import AllReceiptsPage from "./components/AllReceiptsPage"; 
+import UsersPage from "./components/UsersPage";
 const LayoutWithSidebar = ({ children }) => {
   const location = useLocation();
   const showSidebar = location.pathname !== "/login";
@@ -79,10 +79,10 @@ function App() {
             }
           />
           <Route
-            path="/purchase-receipts"
+            path="/all-receipts"
             element={
               <ProtectedRoute>
-                <PurchaseReceiptPage />
+                <AllReceiptsPage />
               </ProtectedRoute>
             }
           />
@@ -130,6 +130,7 @@ function App() {
               </ProtectedRoute>
             }
           />
+          
           <Route
   path="/warehouse"
   element={
@@ -147,6 +148,14 @@ function App() {
     </ProtectedRoute>
   }
 />
+ <Route
+            path="/manage-users"
+            element={
+              <ProtectedRoute>
+                <UsersPage />
+              </ProtectedRoute>
+            }
+          />
         </Routes>
       </LayoutWithSidebar>
     </Router>
