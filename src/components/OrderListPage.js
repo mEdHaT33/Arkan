@@ -27,9 +27,45 @@ const OrderListPage = ({ isSidebarOpen }) => {
   const [modalOrderId, setModalOrderId] = useState(null);
   const [error, setError] = useState("");
 
+  // NEW: map of client_id -> client_name (from clients_vendors via existing endpoint)
+  const [clientsMap, setClientsMap] = useState({});
+
   useEffect(() => {
     fetchOrdersByStatus(selectedStatus);
   }, [selectedStatus]);
+
+  // NEW: fetch clients once (this endpoint should already back your clients_vendors table)
+  useEffect(() => {
+    const fetchClients = async () => {
+      try {
+        // If you have a dedicated endpoint, you can also try: get_clients_vendors.php
+        const res = await fetch(api("get_clients.php"));
+        const data = await res.json();
+        if (data?.success && Array.isArray(data.clients)) {
+          const map = {};
+          for (const c of data.clients) {
+            const id = c.id != null ? String(c.id) : null;
+            if (!id) continue;
+            // prefer `name`, but fall back gracefully to common field names if needed
+            map[id] =
+              c.name ??
+              c.client_name ??
+              c.company_name ??
+              c.full_name ??
+              c.name_en ??
+              c.name_ar ??
+              `Client #${id}`;
+          }
+          setClientsMap(map);
+        } else {
+          setClientsMap({});
+        }
+      } catch {
+        setClientsMap({});
+      }
+    };
+    fetchClients();
+  }, []);
 
   const fetchOrdersByStatus = async (status) => {
     try {
@@ -38,7 +74,7 @@ const OrderListPage = ({ isSidebarOpen }) => {
       const url =
         status && status !== "all"
           ? api(`get_orders_by_status.php?status=${encodeURIComponent(status)}`)
-          : api("get_orders_by_status.php"); // backend treats empty/all the same
+          : api("get_orders_by_status.php");
 
       const res = await fetch(url);
       const data = await res.json();
@@ -135,6 +171,12 @@ const OrderListPage = ({ isSidebarOpen }) => {
     </td>
   );
 
+  const prettyClientName = (order) => {
+    const id = order?.client_id != null ? String(order.client_id) : null;
+    // Prefer live map (from clients_vendors) ➜ fallback to order.client_name ➜ fallback to ID
+    return (id && clientsMap[id]) || order.client_name || id || "-";
+  };
+
   return (
     <div className={`order-page ${isSidebarOpen ? "shifted" : ""}`}>
       <h2 className="order-title">📦 Order List</h2>
@@ -189,10 +231,7 @@ const OrderListPage = ({ isSidebarOpen }) => {
               {orders.map((order) => (
                 <tr key={order.order_id}>
                   <td className="table-cell">{order.order_id}</td>
-                  <td className="table-cell">
-                    {/* Your table may not have client_name; fallback safely */}
-                    {order.client_name || order.client_id}
-                  </td>
+                  <td className="table-cell">{prettyClientName(order)}</td>
                   <td className="table-cell">{order.status}</td>
 
                   {renderUploadInput(order, "brief_file", "brief")}
