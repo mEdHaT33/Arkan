@@ -15,7 +15,11 @@ const Login = () => {
         "https://arkanaltafawuq.com/arkan-system/login.php",
         {
           method: "POST",
-          headers: { "Content-Type": "application/json" },
+          credentials: 'include',  // This is crucial for sending/receiving cookies
+          headers: { 
+            "Content-Type": "application/json",
+            "Accept": "application/json"
+          },
           body: JSON.stringify({ username, password }),
         }
       );

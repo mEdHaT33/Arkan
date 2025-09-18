@@ -1,5 +1,5 @@
 // src/components/WarehousePage.jsx
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useMemo, useState, useCallback } from "react";
 
 const API = "https://arkanaltafawuq.com/arkan-system";
 
@@ -18,6 +18,12 @@ const WarehousePage = () => {
   const [tab, setTab] = useState("stock"); // stock | add | in | out | movements
   const [items, setItems] = useState([]);
   const [loading, setLoading] = useState(false);
+  const [movementFilters, setMovementFilters] = useState({
+    item_id: "",
+    from: "",
+    to: "",
+    limit: 100,
+  });
 
   // STOCK filters (NEW)
   const [stockFilters, setStockFilters] = useState({
@@ -58,23 +64,14 @@ const WarehousePage = () => {
   const [outForm, setOutForm] = useState({
     item_id: "",
     qty: "",
-    unit_price: "",
     reason: "usage",
     order_id: "",
-    supplier_id: "",
-    po_number: "",
     note: "",
   });
 
   // Movements list
   const [inRows, setInRows] = useState([]);
   const [outRows, setOutRows] = useState([]);
-  const [filters, setFilters] = useState({
-    item_id: "",
-    from: "",
-    to: "",
-    limit: 100,
-  });
 
   const username = localStorage.getItem("username") || "";
 
@@ -93,68 +90,46 @@ const WarehousePage = () => {
     }
   };
 
-  const fetchIn = async () => {
+  const fetchIn = useCallback(async () => {
     const qs = new URLSearchParams();
-    if (filters.item_id) qs.append("item_id", filters.item_id);
-    if (filters.from) qs.append("from", filters.from);
-    if (filters.to) qs.append("to", filters.to);
-    if (filters.limit) qs.append("limit", filters.limit);
-    const res = await fetch(`${API}/warehouse_get_in.php?` + qs.toString());
-    const data = await res.json();
-    if (data.success) setInRows(data.items || []);
-  };
-
-  const fetchOut = async () => {
-    const qs = new URLSearchParams();
-    if (filters.item_id) qs.append("item_id", filters.item_id);
-    if (filters.from) qs.append("from", filters.from);
-    if (filters.to) qs.append("to", filters.to);
-    if (filters.limit) qs.append("limit", filters.limit);
+    if (movementFilters.item_id) qs.append("item_id", movementFilters.item_id);
+    if (movementFilters.from) qs.append("from", movementFilters.from);
+    if (movementFilters.to) qs.append("to", movementFilters.to);
+    if (movementFilters.limit) qs.append("limit", movementFilters.limit);
     
     try {
-      // First get the out items
-      const outRes = await fetch(`${API}/warehouse_get_out.php?` + qs.toString());
-      const outData = await outRes.json();
-      
-      if (outData.success) {
-        // Then get the latest unit cost for each item
-        const itemsWithCosts = await Promise.all(
-          outData.items.map(async (item) => {
-            try {
-              const costRes = await fetch(`${API}/warehouse_get_in.php?item_id=${item.item_id}&limit=1`);
-              const costData = await costRes.json();
-              const latestCost = costData.success && costData.items.length > 0 
-                ? parseFloat(costData.items[0].unit_cost) 
-                : 0;
-              
-              return {
-                ...item,
-                unit_price: parseFloat(item.unit_price) || latestCost
-              };
-            } catch (e) {
-              console.error(`Error fetching cost for item ${item.item_id}:`, e);
-              return {
-                ...item,
-                unit_price: parseFloat(item.unit_price) || 0
-              };
-            }
-          })
-        );
-        
-        setOutRows(itemsWithCosts);
-      }
+      const res = await fetch(`${API}/warehouse_get_in.php?` + qs.toString());
+      const data = await res.json();
+      setInRows(Array.isArray(data.rows) ? data.rows : []);
     } catch (error) {
-      console.error('Error in fetchOut:', error);
+      console.error('Error fetching in movements:', error);
+      setInRows([]);
+    }
+  }, [movementFilters]);
+
+  const fetchOut = useCallback(async () => {
+    const qs = new URLSearchParams();
+    if (movementFilters.item_id) qs.append("item_id", movementFilters.item_id);
+    if (movementFilters.from) qs.append("from", movementFilters.from);
+    if (movementFilters.to) qs.append("to", movementFilters.to);
+    if (movementFilters.limit) qs.append("limit", movementFilters.limit);
+    
+    try {
+      const res = await fetch(`${API}/warehouse_get_out.php?` + qs.toString());
+      const data = await res.json();
+      setOutRows(Array.isArray(data.rows) ? data.rows : []);
+    } catch (error) {
+      console.error('Error fetching out movements:', error);
       setOutRows([]);
     }
-  };
+  }, [movementFilters]);
 
   useEffect(() => {
     if (tab === "stock") fetchItems();
     if (tab === "in") { fetchItems(); fetchIn(); }
     if (tab === "out") { fetchItems(); fetchOut(); }
     if (tab === "movements") { fetchIn(); fetchOut(); }
-  }, [tab]); // eslint-disable-line
+  }, [tab, fetchIn, fetchOut]);
 
   const addItem = async (e) => {
     e.preventDefault();
@@ -232,11 +207,8 @@ const WarehousePage = () => {
     const payload = {
       item_id: parseInt(outForm.item_id, 10),
       qty: parseFloat(outForm.qty || 0),
-      unit_price: outForm.unit_price === "" ? null : parseFloat(outForm.unit_price),
       reason: outForm.reason || "usage",
-      order_id: outForm.order_id === "" ? null : outForm.order_id,
-      supplier_id: outForm.supplier_id === "" ? null : outForm.supplier_id,
-      po_number: outForm.po_number || null,
+      order_id: outForm.order_id === "" ? null : parseInt(outForm.order_id, 10),
       note: outForm.note || null,
       issued_by: username || null,
     };
@@ -248,16 +220,7 @@ const WarehousePage = () => {
     const data = await res.json();
     if (data.success) {
       alert("✅ Stock OUT recorded");
-      setOutForm({
-        item_id: "",
-        qty: "",
-        unit_price: "",
-        reason: "usage",
-        order_id: "",
-        supplier_id: "",
-        po_number: "",
-        note: ""
-      });
+      setOutForm({ item_id: "", qty: "", reason: "usage", order_id: "", note: "" });
       fetchItems();
       fetchOut();
     } else {
@@ -513,11 +476,10 @@ const WarehousePage = () => {
                   <th>Name</th>
                   <th>Qty</th>
                   <th>Unit</th>
-                  <th>Unit Cost</th>
-                  <th>Total Value</th>
                   <th>Min</th>
                   <th>Location</th>
                   <th>Quick +/-</th>
+                  {/* <th>Actions</th> */}
                 </tr>
               </thead>
               <tbody>
@@ -530,8 +492,6 @@ const WarehousePage = () => {
                       <td>{it.item_name}</td>
                       <td>{it.quantity}</td>
                       <td>{it.unit}</td>
-                      <td>{it.purchase_price ? `$${parseFloat(it.purchase_price).toFixed(2)}` : '-'}</td>
-                      <td>${(parseFloat(it.quantity || 0) * parseFloat(it.purchase_price || 0)).toFixed(2)}</td>
                       <td>{it.reorder_level ?? "-"}</td>
                       <td>{it.location ?? "-"}</td>
                       <td>
@@ -714,7 +674,7 @@ const WarehousePage = () => {
           </form>
 
           {/* IN LIST */}
-          <MovementFilters filters={filters} setFilters={setFilters} onApply={() => { fetchIn(); }} />
+          <MovementFilters filters={movementFilters} setFilters={setMovementFilters} onApply={() => { fetchIn(); }} />
           <MovementInTable rows={inRows} />
         </div>
       )}
@@ -758,26 +718,6 @@ const WarehousePage = () => {
               </select>
               <input
                 style={tiny.input}
-                type="number"
-                step="0.0001"
-                placeholder="Unit Price"
-                value={outForm.unit_price}
-                onChange={(e) => setOutForm({ ...outForm, unit_price: e.target.value })}
-              />
-              <input
-                style={tiny.input}
-                placeholder="Supplier ID (optional)"
-                value={outForm.supplier_id}
-                onChange={(e) => setOutForm({ ...outForm, supplier_id: e.target.value })}
-              />
-              <input
-                style={tiny.input}
-                placeholder="PO/Order #"
-                value={outForm.po_number}
-                onChange={(e) => setOutForm({ ...outForm, po_number: e.target.value })}
-              />
-              <input
-                style={tiny.input}
                 placeholder="Order ID (optional)"
                 value={outForm.order_id}
                 onChange={(e) => setOutForm({ ...outForm, order_id: e.target.value })}
@@ -797,33 +737,264 @@ const WarehousePage = () => {
           </form>
 
           {/* OUT LIST */}
-          <MovementFilters filters={filters} setFilters={setFilters} onApply={() => { fetchOut(); }} />
-          <MovementOutTable rows={outRows} itemsById={itemsById} />
+          <MovementFilters 
+            filters={movementFilters} 
+            setFilters={setMovementFilters} 
+            onApply={() => fetchOut()} 
+          />
+          <MovementOutTable rows={outRows} />
         </div>
       )}
 
       {/* MOVEMENTS (combined) */}
       {tab === "movements" && (
-        <div style={{ gap: 20 }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
-            <h2>Inventory Movements</h2>
-            <button 
-              style={{ ...tiny.btn, background: "#333", color: "#fff" }}
-              onClick={() => { fetchIn(); fetchOut(); }}
-            >
-              Refresh
-            </button>
-          </div>
-          <MovementFilters 
-            filters={filters} 
-            setFilters={setFilters} 
-            onApply={() => { fetchIn(); fetchOut(); }} 
+        <div style={{ margin: '20px 0' }}>
+          <h2>Warehouse Movements</h2>
+          <MovementFilters
+            filters={movementFilters}
+            setFilters={setMovementFilters}
+            onApply={() => {
+              fetchIn();
+              fetchOut();
+            }}
           />
-          <div style={{ marginTop: '20px' }}>
-            <CombinedMovementsTable inRows={inRows} outRows={outRows} />
-          </div>
+          <MovementTable inRows={inRows} outRows={outRows} />
         </div>
       )}
+    </div>
+  );
+};
+
+      const inItem = inRows.find(inRow => inRow.item_id === r.item_id);
+      const unitCost = inItem ? (parseFloat(inItem.unit_cost) || 0) : 0;
+      return {
+        ...r,
+        type: 'out',
+        date: r.issued_at,
+        qty: -Math.abs(+r.qty),
+        value: parseFloat(r.qty) * unitCost,
+        by: r.issued_by,
+        reference: r.order_id ? `Order: ${r.order_id}` : '',
+        details: r.reason ? `Reason: ${r.reason}` : ''
+      };
+    });
+    
+    return [...ins, ...outs].sort((a, b) => new Date(b.date) - new Date(a.date));
+  }, [inRows, outRows]);
+
+  return (
+    <div>
+      <div style={{ overflowX: "auto", marginBottom: '20px' }}>
+        <table border="1" cellPadding="8" width="100%">
+          <thead>
+            <tr>
+              <th>Date</th>
+              <th>Type</th>
+              <th>Item</th>
+              <th>Qty</th>
+              <th>Value</th>
+              <th>Reference</th>
+              <th>Details</th>
+              <th>By</th>
+              <th>Note</th>
+            </tr>
+          </thead>
+          <tbody>
+            {allMovements.map((r) => (
+              <tr key={`${r.type}-${r.id}`}>
+                <td>{r.date}</td>
+                <td style={{ 
+                  color: r.type === 'in' ? '#0a6' : '#c00',
+                  fontWeight: 600
+                }}>
+                  {r.type.toUpperCase()}
+                </td>
+                <td>
+                  #{r.item_id} — {r.item_code} / {r.item_name}
+                </td>
+                <td style={{ 
+                  color: r.type === 'in' ? '#0a6' : '#c00',
+                  fontWeight: 600
+                }}>
+                  {r.type === 'in' ? '+' : ''}{r.qty}
+                </td>
+                <td>{r.value.toFixed(2)}</td>
+                <td>{r.reference || '-'}</td>
+                <td>{r.details || '-'}</td>
+                <td>{r.by || '-'}</td>
+                <td>{r.note || '-'}</td>
+              </tr>
+            ))}
+            {allMovements.length === 0 && (
+              <tr>
+                <td colSpan="9">No movements found</td>
+              </tr>
+            )}
+          </tbody>
+        </table>
+      </div>
+      
+      <div style={{ 
+        display: 'flex', 
+        justifyContent: 'flex-end',
+        gap: '30px',
+        marginTop: '20px',
+        padding: '15px',
+        backgroundColor: '#f8f9fa',
+        borderRadius: '8px',
+        border: '1px solid #e9ecef'
+      }}>
+        <div style={{ textAlign: 'right' }}>
+          <div style={{ color: '#6c757d', fontSize: '0.9em' }}>Total In Value</div>
+          <div style={{ fontSize: '1.2em', fontWeight: 'bold', color: '#0a6' }}>
+            ${totalInValue.toFixed(2)}
+          </div>
+        </div>
+        <div style={{ textAlign: 'right' }}>
+          <div style={{ color: '#6c757d', fontSize: '0.9em' }}>Total Out Value</div>
+          <div style={{ fontSize: '1.2em', fontWeight: 'bold', color: '#c00' }}>
+            ${totalOutValue.toFixed(2)}
+          </div>
+        </div>
+        <div style={{ textAlign: 'right' }}>
+          <div style={{ color: '#6c757d', fontSize: '0.9em' }}>Net Value</div>
+          <div style={{ 
+            fontSize: '1.4em', 
+            fontWeight: 'bold',
+            color: netValue >= 0 ? '#0a6' : '#c00'
+          }}>
+            ${Math.abs(netValue).toFixed(2)} {netValue >= 0 ? '' : '('} 
+            {netValue >= 0 ? 'Profit' : 'Loss'}{netValue >= 0 ? '' : ')'}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+const MovementTable = ({ inRows, outRows }) => {
+  // Calculate total values
+  const totalInValue = useMemo(() => 
+    inRows.reduce((sum, row) => sum + (parseFloat(row.total_cost) || 0), 0), 
+    [inRows]
+  );
+
+  const totalOutValue = useMemo(() => 
+    outRows.reduce((sum, row) => {
+      const inItem = inRows.find(inRow => inRow.item_id === row.item_id);
+      const avgCost = inItem ? (parseFloat(inItem.unit_cost) || 0) : 0;
+      return sum + (parseFloat(row.qty) * avgCost);
+    }, 0), 
+    [outRows, inRows]
+  );
+
+  const netValue = totalInValue - totalOutValue;
+
+  // Combine and sort movements by date
+  const allMovements = useMemo(() => {
+      const inItem = inRows.find(inRow => inRow.item_id === r.item_id);
+      const unitCost = inItem ? (parseFloat(inItem.unit_cost) || 0) : 0;
+      return {
+        ...r,
+        type: 'out',
+        date: r.issued_at,
+        qty: -Math.abs(+r.qty),
+        value: parseFloat(r.qty) * unitCost,
+        by: r.issued_by,
+        reference: r.order_id ? `Order: ${r.order_id}` : '',
+        details: r.reason ? `Reason: ${r.reason}` : ''
+      };
+    });
+    
+    return [...ins, ...outs].sort((a, b) => new Date(b.date) - new Date(a.date));
+  }, [inRows, outRows]);
+
+  return (
+    <div>
+      <div style={{ overflowX: "auto", marginBottom: '20px' }}>
+        <table border="1" cellPadding="8" width="100%">
+          <thead>
+            <tr>
+              <th>Date</th>
+              <th>Type</th>
+              <th>Item</th>
+              <th>Qty</th>
+              <th>Value</th>
+              <th>Reference</th>
+              <th>Details</th>
+              <th>By</th>
+              <th>Note</th>
+            </tr>
+          </thead>
+          <tbody>
+            {allMovements.map((r) => (
+              <tr key={`${r.type}-${r.id}`}>
+                <td>{r.date}</td>
+                <td style={{ 
+                  color: r.type === 'in' ? '#0a6' : '#c00',
+                  fontWeight: 600
+                }}>
+                  {r.type.toUpperCase()}
+                </td>
+                <td>
+                  #{r.item_id} — {r.item_code} / {r.item_name}
+                </td>
+                <td style={{ 
+                  color: r.type === 'in' ? '#0a6' : '#c00',
+                  fontWeight: 600
+                }}>
+                  {r.type === 'in' ? '+' : ''}{r.qty}
+                </td>
+                <td>{r.value.toFixed(2)}</td>
+                <td>{r.reference || '-'}</td>
+                <td>{r.details || '-'}</td>
+                <td>{r.by || '-'}</td>
+                <td>{r.note || '-'}</td>
+              </tr>
+            ))}
+            {allMovements.length === 0 && (
+              <tr>
+                <td colSpan="9">No movements found</td>
+              </tr>
+            )}
+          </tbody>
+        </table>
+      </div>
+      
+      <div style={{ 
+        display: 'flex', 
+        justifyContent: 'flex-end',
+        gap: '30px',
+        marginTop: '20px',
+        padding: '15px',
+        backgroundColor: '#f8f9fa',
+        borderRadius: '8px',
+        border: '1px solid #e9ecef'
+      }}>
+        <div style={{ textAlign: 'right' }}>
+          <div style={{ color: '#6c757d', fontSize: '0.9em' }}>Total In Value</div>
+          <div style={{ fontSize: '1.2em', fontWeight: 'bold', color: '#0a6' }}>
+            ${totalInValue.toFixed(2)}
+          </div>
+        </div>
+        <div style={{ textAlign: 'right' }}>
+          <div style={{ color: '#6c757d', fontSize: '0.9em' }}>Total Out Value</div>
+          <div style={{ fontSize: '1.2em', fontWeight: 'bold', color: '#c00' }}>
+            ${totalOutValue.toFixed(2)}
+          </div>
+        </div>
+        <div style={{ textAlign: 'right' }}>
+          <div style={{ color: '#6c757d', fontSize: '0.9em' }}>Net Value</div>
+          <div style={{ 
+            fontSize: '1.4em', 
+            fontWeight: 'bold',
+            color: netValue >= 0 ? '#0a6' : '#c00'
+          }}>
+            ${Math.abs(netValue).toFixed(2)} {netValue >= 0 ? '' : '('} 
+            {netValue >= 0 ? 'Profit' : 'Loss'}{netValue >= 0 ? '' : ')'}
+          </div>
+        </div>
+      </div>
     </div>
   );
 };
@@ -862,185 +1033,22 @@ const MovementFilters = ({ filters, setFilters, onApply }) => {
   );
 };
 
-const MovementInTable = ({ rows }) => {
-  // Calculate total value
-  const totalValue = useMemo(() => {
-    return rows.reduce((sum, row) => sum + (parseFloat(row.total_cost) || 0), 0);
-  }, [rows]);
-
-  return (
-    <div>
-      <div style={{ overflowX: "auto" }}>
-        <table border="1" cellPadding="8" width="100%">
-          <thead>
-            <tr>
-              <th>Date</th>
-              <th>Item</th>
-              <th>Qty</th>
-              <th>Unit Cost</th>
-              <th>Total Cost</th>
-              <th>Supplier</th>
-              <th>PO</th>
-              <th>By</th>
-              <th>Note</th>
-            </tr>
-          </thead>
-          <tbody>
-            {rows.map((r) => (
-              <tr key={r.id}>
-                <td>{r.received_at}</td>
-                <td>#{r.item_id} — {r.item_code} / {r.item_name}</td>
-                <td style={{ color: "#0a6", fontWeight: 600 }}>+{r.qty}</td>
-                <td>{r.unit_cost ? `$${parseFloat(r.unit_cost).toFixed(2)}` : "-"}</td>
-                <td style={{ fontWeight: 600 }}>
-                  {r.total_cost ? `$${parseFloat(r.total_cost).toFixed(2)}` : "-"}
-                </td>
-                <td>{r.supplier_id ?? "-"}</td>
-                <td>{r.po_number ?? "-"}</td>
-                <td>{r.received_by ?? "-"}</td>
-                <td>{r.note ?? "-"}</td>
-              </tr>
-            ))}
-            {rows.length === 0 && (
-              <tr>
-                <td colSpan="9">No IN movements</td>
-              </tr>
-            )}
-          </tbody>
-        </table>
-      </div>
-      <div style={{ 
-        textAlign: 'right', 
-        fontSize: '1.1em', 
-        fontWeight: 'bold',
-        marginTop: '10px',
-        padding: '8px',
-        backgroundColor: '#f5f5f5',
-        borderRadius: '4px'
-      }}>
-        Total IN Value: ${totalValue.toFixed(2)}
-      </div>
-    </div>
-  );
-};
-
-const MovementOutTable = ({ rows }) => {
-  // Calculate total quantity and value out
-  const { totalQty, totalValue } = useMemo(() => {
-    return rows.reduce((acc, row) => {
-      const qty = parseFloat(row.qty || 0);
-      const unitPrice = parseFloat(row.unit_price || 0);
-      return {
-        totalQty: acc.totalQty + qty,
-        totalValue: acc.totalValue + (qty * unitPrice)
-      };
-    }, { totalQty: 0, totalValue: 0 });
-  }, [rows]);
-
-  return (
-    <div>
-      <div style={{ overflowX: "auto" }}>
-        <table border="1" cellPadding="8" width="100%">
-          <thead>
-            <tr>
-              <th>Date</th>
-              <th>Item</th>
-              <th>Qty</th>
-              <th>Unit Price</th>
-              <th>Total Value</th>
-              <th>Reason</th>
-              <th>PO/Order #</th>
-              <th>Supplier</th>
-              <th>By</th>
-              <th>Note</th>
-            </tr>
-          </thead>
-          <tbody>
-            {rows.map((r) => (
-              <tr key={r.id}>
-                <td>{r.issued_at}</td>
-                <td>#{r.item_id} — {r.item_code} / {r.item_name}</td>
-                <td style={{ color: "#c00", fontWeight: 600 }}>-{parseFloat(r.qty)}</td>
-                <td>{r.unit_price ? `$${parseFloat(r.unit_price).toFixed(4)}` : "-"}</td>
-                <td style={{ fontWeight: 600, color: "#c00" }}>
-                  {r.unit_price ? `-$${(r.qty * r.unit_price).toFixed(2)}` : "-"}
-                </td>
-                <td>{r.reason || "-"}</td>
-                <td>{r.po_number || r.order_id || "-"}</td>
-                <td>{r.supplier_id || "-"}</td>
-                <td>{r.issued_by || "-"}</td>
-                <td>{r.note || "-"}</td>
-              </tr>
-            ))}
-            {rows.length === 0 ? (
-              <tr>
-                <td colSpan="10">No OUT movements</td>
-              </tr>
-            ) : (
-              <tr style={{ fontWeight: 'bold', backgroundColor: '#f9f9f9' }}>
-                <td colSpan="2">Total</td>
-                <td>-{totalQty.toFixed(2)}</td>
-                <td></td>
-                <td style={{ color: '#c00' }}>-${Math.abs(totalValue).toFixed(2)}</td>
-                <td colSpan="6"></td>
-              </tr>
-            )}
-          </tbody>
-        </table>
-      </div>
-    </div>
-  );
-};
-
-const CombinedMovementsTable = ({ inRows, outRows }) => {
-  // Combine and sort movements by date
-  const combinedRows = useMemo(() => {
-    const inMapped = inRows.map(r => ({
-      ...r,
-      type: 'in',
-      date: r.received_at,
-      amount: r.qty,
-      value: (r.unit_cost || 0) * r.qty,
-      by: r.received_by,
-      details: r.po_number ? `PO: ${r.po_number}` : ''
-    }));
-    
-    const outMapped = outRows.map(r => {
-      const unitPrice = parseFloat(r.unit_price || 0);
-      const qty = parseFloat(r.qty || 0);
+      const inItem = inRows.find(inRow => inRow.item_id === r.item_id);
+      const unitCost = inItem ? (parseFloat(inItem.unit_cost) || 0) : 0;
       return {
         ...r,
         type: 'out',
         date: r.issued_at,
-        amount: -qty,
-        value: -(unitPrice * qty), // Calculate value for outbound items using unit_price
-        unit_price: unitPrice,     // Include unit_price for reference
+        qty: -Math.abs(+r.qty),
+        value: parseFloat(r.qty) * unitCost,
         by: r.issued_by,
-        details: r.reason === 'order' && r.order_id ? `Order #${r.order_id}` : r.reason
+        reference: r.order_id ? `Order: ${r.order_id}` : '',
+        details: r.reason ? `Reason: ${r.reason}` : ''
       };
     });
     
-    return [...inMapped, ...outMapped].sort((a, b) => 
-      new Date(b.date) - new Date(a.date)
-    );
+    return [...ins, ...outs].sort((a, b) => new Date(b.date) - new Date(a.date));
   }, [inRows, outRows]);
-
-  // Calculate total value (IN - OUT)
-  const totalValue = useMemo(() => {
-    return combinedRows.reduce((sum, row) => sum + (row.value || 0), 0);
-  }, [combinedRows]);
-
-  // Calculate total IN and OUT values
-  const { totalIn, totalOut } = useMemo(() => {
-    return combinedRows.reduce((acc, row) => {
-      if (row.type === 'in') {
-        acc.totalIn += Math.abs(row.value) || 0;
-      } else {
-        acc.totalOut += Math.abs(row.value) || 0;
-      }
-      return acc;
-    }, { totalIn: 0, totalOut: 0 });
-  }, [combinedRows]);
 
   return (
     <div>
@@ -1049,104 +1057,82 @@ const CombinedMovementsTable = ({ inRows, outRows }) => {
           <thead>
             <tr>
               <th>Date</th>
-              <th>Item</th>
               <th>Type</th>
+              <th>Item</th>
               <th>Qty</th>
               <th>Value</th>
+              <th>Reference</th>
               <th>Details</th>
               <th>By</th>
               <th>Note</th>
             </tr>
           </thead>
           <tbody>
-            {combinedRows.map((row, index) => (
-              <tr key={`${row.type}-${row.id}`}>
-                <td>{row.date}</td>
-                <td>
-                  #{row.item_id} — {row.item_code} / {row.item_name}
-                </td>
-                <td>{row.type.toUpperCase()}</td>
+            {allMovements.map((r) => (
+              <tr key={`${r.type}-${r.id}`}>
+                <td>{r.date}</td>
                 <td style={{ 
-                  color: row.type === 'in' ? '#0a6' : '#c00', 
-                  fontWeight: 600 
+                  color: r.type === 'in' ? '#0a6' : '#c00',
+                  fontWeight: 600
                 }}>
-                  {row.type === 'in' ? '+' : '-'}{row.amount}
+                  {r.type.toUpperCase()}
                 </td>
-                <td>{row.value ? `$${row.value.toFixed(2)}` : '-'}</td>
-                <td>{row.details}</td>
-                <td>{row.by || '-'}</td>
-                <td>{row.note || '-'}</td>
+                <td>
+                  #{r.item_id} — {r.item_code} / {r.item_name}
+                </td>
+                <td style={{ 
+                  color: r.type === 'in' ? '#0a6' : '#c00',
+                  fontWeight: 600
+                }}>
+                  {r.type === 'in' ? '+' : ''}{r.qty}
+                </td>
+                <td>{r.value.toFixed(2)}</td>
+                <td>{r.reference || '-'}</td>
+                <td>{r.details || '-'}</td>
+                <td>{r.by || '-'}</td>
+                <td>{r.note || '-'}</td>
               </tr>
             ))}
-            {combinedRows.length === 0 && (
+            {allMovements.length === 0 && (
               <tr>
-                <td colSpan="8">No movements found</td>
+                <td colSpan="9">No movements found</td>
               </tr>
             )}
           </tbody>
         </table>
       </div>
-      <div style={{
-        margin: '16px 0',
-        padding: '16px',
+      
+      <div style={{ 
+        display: 'flex', 
+        justifyContent: 'flex-end',
+        gap: '30px',
+        marginTop: '20px',
+        padding: '15px',
         backgroundColor: '#f8f9fa',
         borderRadius: '8px',
-        display: 'grid',
-        gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))',
-        gap: '16px',
-        alignItems: 'center'
+        border: '1px solid #e9ecef'
       }}>
-        <div style={{
-          padding: '12px',
-          backgroundColor: '#e8f5e9',
-          borderRadius: '6px',
-          textAlign: 'center'
-        }}>
-          <div style={{ fontSize: '14px', color: '#2e7d32', marginBottom: '4px' }}>Total IN Value</div>
-          <div style={{ fontSize: '20px', fontWeight: 'bold', color: '#2e7d32' }}>
-            ${totalIn.toFixed(2)}
+        <div style={{ textAlign: 'right' }}>
+          <div style={{ color: '#6c757d', fontSize: '0.9em' }}>Total In Value</div>
+          <div style={{ fontSize: '1.2em', fontWeight: 'bold', color: '#0a6' }}>
+            ${totalInValue.toFixed(2)}
           </div>
         </div>
-        
-        <div style={{
-          padding: '12px',
-          backgroundColor: '#ffebee',
-          borderRadius: '6px',
-          textAlign: 'center'
-        }}>
-          <div style={{ fontSize: '14px', color: '#c62828', marginBottom: '4px' }}>Total OUT Value</div>
-          <div style={{ fontSize: '20px', fontWeight: 'bold', color: '#c62828' }}>
-            -${totalOut.toFixed(2)}
+        <div style={{ textAlign: 'right' }}>
+          <div style={{ color: '#6c757d', fontSize: '0.9em' }}>Total Out Value</div>
+          <div style={{ fontSize: '1.2em', fontWeight: 'bold', color: '#c00' }}>
+            ${totalOutValue.toFixed(2)}
           </div>
         </div>
-        
-        <div style={{
-          padding: '12px',
-          backgroundColor: totalValue >= 0 ? '#e8f5e9' : '#ffebee',
-          borderRadius: '6px',
-          textAlign: 'center',
-          border: `2px solid ${totalValue >= 0 ? '#2e7d32' : '#c62828'}`
-        }}>
+        <div style={{ textAlign: 'right' }}>
+          <div style={{ color: '#6c757d', fontSize: '0.9em' }}>Net Value</div>
           <div style={{ 
-            fontSize: '14px', 
-            color: totalValue >= 0 ? '#2e7d32' : '#c62828',
-            marginBottom: '4px' 
+            fontSize: '1.4em', 
+            fontWeight: 'bold',
+            color: netValue >= 0 ? '#0a6' : '#c00'
           }}>
-            Net Value
-          </div>
-          <div style={{ 
-            fontSize: '24px', 
-            fontWeight: 'bold', 
-            color: totalValue >= 0 ? '#2e7d32' : '#c62828' 
-          }}>
-            ${Math.abs(totalValue).toFixed(2)}
-            <span style={{ 
-              fontSize: '14px',
-              marginLeft: '8px',
-              fontWeight: 'normal'
-            }}>
-              {totalValue >= 0 ? '(Profit)' : '(Loss)'}
-            </span>
+            ${Math.abs(netValue).toFixed(2)} {netValue >= 0 ? '' : '('} 
+            {netValue >= 0 ? 'Profit' : 'Loss'}{netValue >= 0 ? '' : ')'}
           </div>
         </div>
       </div>

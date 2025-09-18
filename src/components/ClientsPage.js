@@ -87,9 +87,16 @@ const ClientPage = ({ isSidebarOpen }) => {
   const handleUpdateClient = async () => {
     try {
       const clientToUpdate = {
-        ...editClient,
-        balance: parseFloat(editClient.balance) || 0,
+        id: editClient.id,
+        name: editClient.name,
+        type: editClient.type,
+        address: editClient.address || "",
+        tax_id: editClient.tax_id || "",
+        phone: editClient.phone || "",
+        email: editClient.email || "",
+        balance: editClient.balance === "" ? null : editClient.balance
       };
+
       const response = await fetch(
         "https://arkanaltafawuq.com/arkan-system/edit_client.php",
         {
@@ -98,17 +105,18 @@ const ClientPage = ({ isSidebarOpen }) => {
           body: JSON.stringify(clientToUpdate),
         }
       );
+      
       const data = await response.json();
       if (data.success) {
-        alert("✅ Client updated!");
+        alert("✅ Client updated successfully!");
         setEditMode(null);
         fetchClients();
       } else {
-        alert("❌ Update failed: " + data.message);
+        alert("❌ Update failed: " + (data.message || "Unknown error"));
       }
     } catch (err) {
       console.error("Update error", err);
-      alert("❌ Server error");
+      alert("❌ Server error: " + err.message);
     }
   };
 
@@ -239,38 +247,46 @@ const ClientPage = ({ isSidebarOpen }) => {
                 {editMode === client.id ? (
                   <div className="form-group">
                     <input
-                      value={editClient.name}
+                      type="text"
+                      placeholder="Name"
+                      value={editClient.name || ''}
                       onChange={(e) =>
                         setEditClient({ ...editClient, name: e.target.value })
                       }
                       className="form-input"
+                      required
                     />
                     <input
-                      value={editClient.phone}
+                      type="tel"
+                      placeholder="Phone"
+                      value={editClient.phone || ''}
                       onChange={(e) =>
                         setEditClient({ ...editClient, phone: e.target.value })
                       }
                       className="form-input"
                     />
                     <input
-                      value={editClient.email}
+                      type="email"
+                      placeholder="Email"
+                      value={editClient.email || ''}
                       onChange={(e) =>
                         setEditClient({ ...editClient, email: e.target.value })
                       }
                       className="form-input"
                     />
                     <input
-                      value={editClient.address}
+                      type="text"
+                      placeholder="Address"
+                      value={editClient.address || ''}
                       onChange={(e) =>
-                        setEditClient({
-                          ...editClient,
-                          address: e.target.value,
-                        })
+                        setEditClient({ ...editClient, address: e.target.value })
                       }
                       className="form-input"
                     />
                     <input
-                      value={editClient.tax_id}
+                      type="text"
+                      placeholder="Tax ID"
+                      value={editClient.tax_id || ''}
                       onChange={(e) =>
                         setEditClient({ ...editClient, tax_id: e.target.value })
                       }
@@ -278,21 +294,24 @@ const ClientPage = ({ isSidebarOpen }) => {
                     />
                     <input
                       type="number"
-                      value={editClient.balance}
+                      step="0.01"
+                      placeholder="Balance (leave empty to keep current)"
+                      value={editClient.balance !== null ? editClient.balance : ''}
                       onChange={(e) =>
                         setEditClient({
                           ...editClient,
-                          balance: e.target.value,
+                          balance: e.target.value === '' ? null : e.target.value,
                         })
                       }
                       className="form-input"
                     />
                     <select
-                      value={editClient.type}
+                      value={editClient.type || 'Client'}
                       onChange={(e) =>
                         setEditClient({ ...editClient, type: e.target.value })
                       }
                       className="form-select"
+                      required
                     >
                       <option value="Client">Client</option>
                       <option value="Vendor">Vendor</option>

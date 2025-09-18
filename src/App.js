@@ -25,6 +25,7 @@ import WarehousePage from "./components/WarehousePage";
 import FinanceBalance from "./components/FinanceBalance";
 import AllReceiptsPage from "./components/AllReceiptsPage"; 
 import UsersPage from "./components/UsersPage";
+import SessionTest from "./components/SessionTest";
 const LayoutWithSidebar = ({ children }) => {
   const location = useLocation();
   const showSidebar = location.pathname !== "/login";
@@ -99,6 +100,14 @@ function App() {
             element={
               <ProtectedRoute>
                 <OrderListPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/session-test"
+            element={
+              <ProtectedRoute>
+                <SessionTest />
               </ProtectedRoute>
             }
           />

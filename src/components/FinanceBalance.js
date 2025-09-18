@@ -1,4 +1,5 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useCallback } from "react";
+import PartyBalanceEditor from "./PartyBalanceEditor";
 
 /* =========================
    API base helper (CRA + Vite safe)
@@ -65,7 +66,7 @@ export default function FinancePage() {
     })()
   });
 
-  const loadSummary = async () => {
+  const loadSummary = useCallback(async () => {
     try {
       setLoadingSummary(true);
       setError("");
@@ -78,6 +79,34 @@ export default function FinancePage() {
     } finally {
       setLoadingSummary(false);
     }
+  }, []);
+
+  const calculateRunningBalances = (transactions) => {
+    let cashBalance = 0;
+    let bankBalance = 0;
+    
+    // Calculate running balances from oldest to newest
+    return transactions
+      .slice() // Create a copy to avoid mutating the original array
+      .sort((a, b) => new Date(a.txn_date) - new Date(b.txn_date) || a.id - b.id)
+      .map(txn => {
+        // Calculate the effect of this transaction on balances
+        const amount = parseFloat(txn.amount) * (txn.direction === 'in' ? 1 : -1);
+        
+        if (txn.account.toLowerCase() === 'cash') {
+          cashBalance += amount;
+        } else if (txn.account.toLowerCase() === 'bank') {
+          bankBalance += amount;
+        }
+        
+        // Return the transaction with calculated balances
+        return {
+          ...txn,
+          cash_balance_after: txn.account.toLowerCase() === 'cash' ? cashBalance : null,
+          bank_balance_after: txn.account.toLowerCase() === 'bank' ? bankBalance : null
+        };
+      })
+      .reverse(); // Show newest first
   };
 
   const loadTxns = async () => {
@@ -87,10 +116,13 @@ export default function FinancePage() {
       const qs = new URLSearchParams(
         Object.fromEntries(Object.entries(filters).filter(([_,v]) => v !== "" && v !== null))
       ).toString();
-      const res = await fetch(API(`finance_get_transactions.php${qs ? `?${qs}` : ""}`), { headers:{ "Content-Type":"application/json" }});
+      const res = await fetch(API(`finance_get_transactions.php${qs ? `?${qs}` : ""}`), { headers:{"Content-Type":"application/json" }});
       const data = await res.json();
       if (!data.success) throw new Error(data.error || data.message || "Failed to load transactions");
-      setTxns(data.transactions);
+      
+      // Calculate running balances and update transactions
+      const transactionsWithBalances = calculateRunningBalances(data.transactions);
+      setTxns(transactionsWithBalances);
     } catch (e) {
       setError(`Transactions error: ${e.message}`);
     } finally {
@@ -261,6 +293,7 @@ export default function FinancePage() {
           <thead>
             <tr style={{background:"#f5f5f5"}}>
               <th>Date</th><th>Category</th><th>Kind</th><th>Account</th><th>Dir</th><th>Amount</th><th>Note</th><th>By</th>
+              <th style={{textAlign:'right'}}>Cash After</th><th style={{textAlign:'right'}}>Bank After</th>
             </tr>
           </thead>
           <tbody>
@@ -274,14 +307,23 @@ export default function FinancePage() {
                 <td>{Number(t.amount).toFixed(2)}</td>
                 <td>{t.note || ""}</td>
                 <td>{t.created_by || ""}</td>
+                <td style={{textAlign:'right', fontFamily: 'monospace'}}>
+                  {t.cash_balance_after == null ? '—' : Number(t.cash_balance_after).toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}
+                </td>
+                <td style={{textAlign:'right', fontFamily: 'monospace'}}>
+                  {t.bank_balance_after == null ? '—' : Number(t.bank_balance_after).toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}
+                </td>
               </tr>
             ))}
             {(!loadingTxns && txns.length===0) && (
-              <tr><td colSpan="8" style={{textAlign:"center", padding:"24px"}}>No transactions</td></tr>
+              <tr><td colSpan="10" style={{textAlign:"center", padding:"24px"}}>No transactions</td></tr>
             )}
           </tbody>
         </table>
       </div>
+
+      {/* Clients & Vendors Balance Editor */}
+      <PartyBalanceEditor onUpdate={loadSummary} API={API} />
 
       {/* Backend diagnostics (from PHP file) */}
       {summary?.diagnostics?.length > 0 && (
