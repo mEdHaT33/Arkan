@@ -2,6 +2,7 @@
   "name": "arkan-system",
   "version": "0.1.0",
   "private": true,
+   "homepage": "https://arkanaltafawuq.com/arkann",
   "dependencies": {
     "@emotion/react": "^11.14.0",
     "@emotion/styled": "^11.14.1",

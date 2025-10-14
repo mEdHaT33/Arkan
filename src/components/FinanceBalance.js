@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useCallback } from "react";
-import PartyBalanceEditor from "./PartyBalanceEditor";
+import ClientsPage from "./ClientsPage";
 
 /* =========================
    API base helper (CRA + Vite safe)
@@ -65,6 +65,52 @@ export default function FinancePage() {
       } catch { return "finance"; }
     })()
   });
+
+  // Parties (clients/vendors) for linking transactions to a party
+  const [partyType, setPartyType] = useState("client"); // client | vendor
+  const [partyId, setPartyId] = useState("");
+  const [allParties, setAllParties] = useState([]);
+  const [loadingParties, setLoadingParties] = useState(false);
+
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        setLoadingParties(true);
+        const res = await fetch(API("get_clients.php"));
+        const j = await res.json();
+        const clean = (j.clients || [])
+          .filter((c) => ["Client", "Vendor", "client", "vendor"].includes(c.type))
+          .map((c) => ({
+            ...c,
+            id: Number(c.id),
+            balance: parseFloat(c.balance) || 0,
+            typeNorm: String(c.type).toLowerCase(),
+          }));
+        if (!cancelled) {
+          setAllParties(clean);
+          // reset selection if current is not in filtered group
+          if (!clean.some((p) => String(p.id) === String(partyId) && p.typeNorm === partyType)) {
+            setPartyId("");
+          }
+        }
+      } catch {
+        if (!cancelled) {
+          setAllParties([]);
+        }
+      } finally {
+        if (!cancelled) setLoadingParties(false);
+      }
+    })();
+    return () => { setLoadingParties(false); cancelled = true; };
+  }, [partyType]);
+
+  const parties = React.useMemo(
+    () => allParties
+      .filter((p) => p.typeNorm === partyType)
+      .sort((a,b) => String(a.name).localeCompare(String(b.name))),
+    [allParties, partyType]
+  );
 
   const loadSummary = useCallback(async () => {
     try {
@@ -146,6 +192,12 @@ export default function FinancePage() {
       if (!["bank","cash"].includes(payload.account)) throw new Error("Account must be Bank or Cash");
       if (!["in","out"].includes(payload.direction)) throw new Error("Direction must be In or Out");
 
+      // Attach selected party (optional)
+      if (partyId) {
+        payload.party_type = partyType;   // client | vendor
+        payload.party_id = Number(partyId);
+      }
+
       const res = await fetch(API("finance_add_transaction.php"), {
         method: "POST",
         headers: {"Content-Type":"application/json"},
@@ -171,6 +223,21 @@ export default function FinancePage() {
 
   const totalIn  = summary?.totals?.in_all_time ?? 0;
   const totalOut = summary?.totals?.out_all_time ?? 0;
+
+  // Totals for the visible table (respect current Account filter)
+  const tableTotals = React.useMemo(() => {
+    let inSum = 0;
+    let outSum = 0;
+    const wantedAccount = String(filters.account || "").toLowerCase();
+    for (const t of txns) {
+      const acc = String(t.account || "").toLowerCase();
+      if (wantedAccount && acc !== wantedAccount) continue; // extra guard (API already filters)
+      const amt = Number(t.amount) || 0;
+      const dir = String(t.direction || "").toLowerCase();
+      if (dir === "in") inSum += amt; else if (dir === "out") outSum += amt;
+    }
+    return { inSum, outSum };
+  }, [txns, filters.account]);
 
   return (
     <div style={{padding:"24px", maxWidth:1200, margin:"0 auto"}}>
@@ -240,6 +307,22 @@ export default function FinancePage() {
             <input type="text" value={form.note} onChange={e=>setForm({...form, note:e.target.value})}/>
           </div>
           <div>
+            <label>Party Type</label>
+            <select value={partyType} onChange={e=>setPartyType(e.target.value)}>
+              <option value="client">Client</option>
+              <option value="vendor">Vendor</option>
+            </select>
+          </div>
+          <div>
+            <label>Party {loadingParties && <small style={{color:'#777'}}>loading…</small>}</label>
+            <select value={partyId} onChange={e=>setPartyId(e.target.value)}>
+              <option value="">-- Select --</option>
+              {parties.map(p => (
+                <option key={p.id} value={p.id}>{p.name} — Bal: {(Number(p.balance)||0).toLocaleString(undefined,{minimumFractionDigits:2,maximumFractionDigits:2})}</option>
+              ))}
+            </select>
+          </div>
+          <div>
             <button type="submit">Add</button>
           </div>
         </form>
@@ -292,7 +375,14 @@ export default function FinancePage() {
         <table width="100%" cellPadding="8" style={{borderCollapse:"collapse"}}>
           <thead>
             <tr style={{background:"#f5f5f5"}}>
-              <th>Date</th><th>Category</th><th>Kind</th><th>Account</th><th>Dir</th><th>Amount</th><th>Note</th><th>By</th>
+              <th>Date</th>
+              <th>Category</th>
+              <th>Kind</th>
+              <th>Account</th>
+              <th>Dir</th>
+              <th>Amount</th>
+              <th>Note</th>
+              <th>By</th>
               <th style={{textAlign:'right'}}>Cash After</th><th style={{textAlign:'right'}}>Bank After</th>
             </tr>
           </thead>
@@ -319,11 +409,26 @@ export default function FinancePage() {
               <tr><td colSpan="10" style={{textAlign:"center", padding:"24px"}}>No transactions</td></tr>
             )}
           </tbody>
+          <tfoot>
+            <tr style={{ background: "#fafafa", fontWeight: 700 }}>
+              <td colSpan="5">
+                Totals {filters.account ? `(${filters.account})` : "(All accounts)"}
+                <td>
+                {tableTotals.inSum.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })} in
+                {"  /  "}
+                {tableTotals.outSum.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })} out
+               
+                </td>
+              </td>
+         
+              <td colSpan="4"></td>
+            </tr>
+          </tfoot>
         </table>
       </div>
 
       {/* Clients & Vendors Balance Editor */}
-      <PartyBalanceEditor onUpdate={loadSummary} API={API} />
+      <ClientsPage onUpdate={loadSummary} API={API} />
 
       {/* Backend diagnostics (from PHP file) */}
       {summary?.diagnostics?.length > 0 && (

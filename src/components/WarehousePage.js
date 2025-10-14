@@ -52,6 +52,7 @@ const WarehousePage = () => {
     supplier_id: "",
     po_number: "",
     note: "",
+    receipt_date: "",
   });
 
   // OUT form
@@ -64,11 +65,14 @@ const WarehousePage = () => {
     supplier_id: "",
     po_number: "",
     note: "",
+    issued_at: "",
   });
 
   // Movements list
   const [inRows, setInRows] = useState([]);
   const [outRows, setOutRows] = useState([]);
+  const [inError, setInError] = useState("");
+  const [outError, setOutError] = useState("");
   const [filters, setFilters] = useState({
     item_id: "",
     from: "",
@@ -99,9 +103,22 @@ const WarehousePage = () => {
     if (filters.from) qs.append("from", filters.from);
     if (filters.to) qs.append("to", filters.to);
     if (filters.limit) qs.append("limit", filters.limit);
-    const res = await fetch(`${API}/warehouse_get_in.php?` + qs.toString());
-    const data = await res.json();
-    if (data.success) setInRows(data.items || []);
+    try {
+      setInError("");
+      const res = await fetch(`${API}/warehouse_get_in.php?` + qs.toString());
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const data = await res.json();
+      if (data && data.success) {
+        setInRows(Array.isArray(data.items) ? data.items : []);
+      } else {
+        setInRows([]);
+        setInError((data && data.message) ? String(data.message) : "Failed to load IN movements");
+      }
+    } catch (e) {
+      console.error("fetchIn error", e);
+      setInRows([]);
+      setInError("Could not load IN movements. Please try again.");
+    }
   };
 
   const fetchOut = async () => {
@@ -142,10 +159,15 @@ const WarehousePage = () => {
         );
         
         setOutRows(itemsWithCosts);
+        setOutError("");
+      } else {
+        setOutRows([]);
+        setOutError((outData && outData.message) ? String(outData.message) : "Failed to load OUT movements");
       }
     } catch (error) {
       console.error('Error in fetchOut:', error);
       setOutRows([]);
+      setOutError("Could not load OUT movements. Please try again.");
     }
   };
 
@@ -210,6 +232,7 @@ const WarehousePage = () => {
       po_number: inForm.po_number || null,
       note: inForm.note || null,
       received_by: username || null,
+      receipt_date: inForm.receipt_date || null,
     };
     const res = await fetch(`${API}/warehouse_add_in.php`, {
       method: "POST",
@@ -219,7 +242,7 @@ const WarehousePage = () => {
     const data = await res.json();
     if (data.success) {
       alert("✅ Stock IN recorded");
-      setInForm({ item_id: "", qty: "", unit_cost: "", supplier_id: "", po_number: "", note: "" });
+      setInForm({ item_id: "", qty: "", unit_cost: "", supplier_id: "", po_number: "", note: "", receipt_date: "" });
       fetchItems();
       fetchIn();
     } else {
@@ -239,6 +262,7 @@ const WarehousePage = () => {
       po_number: outForm.po_number || null,
       note: outForm.note || null,
       issued_by: username || null,
+      issued_at: outForm.issued_at || null,
     };
     const res = await fetch(`${API}/warehouse_add_out.php`, {
       method: "POST",
@@ -256,7 +280,8 @@ const WarehousePage = () => {
         order_id: "",
         supplier_id: "",
         po_number: "",
-        note: ""
+        note: "",
+        issued_at: "",
       });
       fetchItems();
       fetchOut();
@@ -700,6 +725,13 @@ const WarehousePage = () => {
                 onChange={(e) => setInForm({ ...inForm, po_number: e.target.value })}
               />
               <input
+                style={tiny.input}
+                type="date"
+                placeholder="Receipt date (optional)"
+                value={inForm.issued_at}
+                onChange={(e) => setInForm({ ...inForm, receipt_date: e.target.value })}
+              />
+              <input
                 style={{ ...tiny.input, gridColumn: "span 3" }}
                 placeholder="Note"
                 value={inForm.note}
@@ -712,6 +744,12 @@ const WarehousePage = () => {
               </button>
             </div>
           </form>
+
+          {inError && (
+            <div style={{ padding: 10, background: '#ffecec', color: '#c00', border: '1px solid #f5c2c2', borderRadius: 6 }}>
+              {inError}
+            </div>
+          )}
 
           {/* IN LIST */}
           <MovementFilters filters={filters} setFilters={setFilters} onApply={() => { fetchIn(); }} />
@@ -766,16 +804,18 @@ const WarehousePage = () => {
               />
               <input
                 style={tiny.input}
+                type="date"
+                placeholder="Receipt date (optional)"
+                value={outForm.issued_at}
+                onChange={(e) => setOutForm({ ...outForm, issued_at: e.target.value })}
+              />
+              <input
+                style={tiny.input}
                 placeholder="Supplier ID (optional)"
                 value={outForm.supplier_id}
                 onChange={(e) => setOutForm({ ...outForm, supplier_id: e.target.value })}
               />
-              <input
-                style={tiny.input}
-                placeholder="PO/Order #"
-                value={outForm.po_number}
-                onChange={(e) => setOutForm({ ...outForm, po_number: e.target.value })}
-              />
+
               <input
                 style={tiny.input}
                 placeholder="Order ID (optional)"
@@ -795,6 +835,12 @@ const WarehousePage = () => {
               </button>
             </div>
           </form>
+
+          {outError && (
+            <div style={{ padding: 10, background: '#ffecec', color: '#c00', border: '1px solid #f5c2c2', borderRadius: 6 }}>
+              {outError}
+            </div>
+          )}
 
           {/* OUT LIST */}
           <MovementFilters filters={filters} setFilters={setFilters} onApply={() => { fetchOut(); }} />
@@ -863,10 +909,57 @@ const MovementFilters = ({ filters, setFilters, onApply }) => {
 };
 
 const MovementInTable = ({ rows }) => {
-  // Calculate total value
+  const [filters, setFilters] = useState({
+    date: "",
+    item: "",
+    qty: "",
+    unitPrice: "",
+    totalCost: "",
+    supplier: "",
+    po: "",
+    by: "",
+    note: "",
+  });
+
+  const matchNumber = (value, expr) => {
+    if (!expr) return true;
+    const v = Number(value || 0);
+    const m = String(expr).trim().match(/^(>=|<=|>|<|=)?\s*(-?\d+(?:\.\d+)?)$/);
+    if (!m) return String(value ?? "").toLowerCase().includes(String(expr).toLowerCase());
+    const op = m[1] || "=";
+    const n = Number(m[2]);
+    switch (op) {
+      case ">": return v > n;
+      case "<": return v < n;
+      case ">=": return v >= n;
+      case "<=": return v <= n;
+      default: return v === n;
+    }
+  };
+
+  const filteredRows = useMemo(() => {
+    return rows.filter((r) => {
+      const dateOk = String(r.received_at || "").toLowerCase().includes(filters.date.toLowerCase());
+      const itemStr = `#${r.item_id} ${r.item_code} ${r.item_name}`;
+      const itemOk = itemStr.toLowerCase().includes(filters.item.toLowerCase());
+      const qtyOk = matchNumber(r.qty, filters.qty);
+      const totalCost = parseFloat(r.total_cost || 0);
+      const qty = parseFloat(r.qty || 0);
+      const unitPrice = qty ? totalCost / qty : (parseFloat(r.unit_cost || 0) || 0);
+      const unitOk = matchNumber(unitPrice, filters.unitPrice);
+      const totalOk = matchNumber(totalCost, filters.totalCost);
+      const supplierOk = String(r.supplier_id ?? "").toLowerCase().includes(filters.supplier.toLowerCase());
+      const poOk = String(r.po_number ?? "").toLowerCase().includes(filters.po.toLowerCase());
+      const byOk = String(r.received_by ?? "").toLowerCase().includes(filters.by.toLowerCase());
+      const noteOk = String(r.note ?? "").toLowerCase().includes(filters.note.toLowerCase());
+      return dateOk && itemOk && qtyOk && unitOk && totalOk && supplierOk && poOk && byOk && noteOk;
+    });
+  }, [rows, filters]);
+
+  // Calculate total value from filtered rows
   const totalValue = useMemo(() => {
-    return rows.reduce((sum, row) => sum + (parseFloat(row.total_cost) || 0), 0);
-  }, [rows]);
+    return filteredRows.reduce((sum, row) => sum + (parseFloat(row.total_cost) || 0), 0);
+  }, [filteredRows]);
 
   return (
     <div>
@@ -877,33 +970,52 @@ const MovementInTable = ({ rows }) => {
               <th>Date</th>
               <th>Item</th>
               <th>Qty</th>
-              <th>Unit Cost</th>
+              <th>Unit Price</th>
               <th>Total Cost</th>
+              <th>IN Stock</th>
               <th>Supplier</th>
-              <th>PO</th>
+              <th>Invoice Number</th>
               <th>By</th>
               <th>Note</th>
             </tr>
+            <tr>
+              <th><input style={tiny.input} placeholder="Filter date" value={filters.date} onChange={(e)=>setFilters({...filters,date:e.target.value})} /></th>
+              <th><input style={tiny.input} placeholder="Filter item" value={filters.item} onChange={(e)=>setFilters({...filters,item:e.target.value})} /></th>
+              <th><input style={tiny.input} placeholder="Qty (e.g. >=5)" value={filters.qty} onChange={(e)=>setFilters({...filters,qty:e.target.value})} /></th>
+              <th><input style={tiny.input} placeholder="Unit (e.g. <10)" value={filters.unitPrice} onChange={(e)=>setFilters({...filters,unitPrice:e.target.value})} /></th>
+              <th><input style={tiny.input} placeholder="Total (e.g. =100)" value={filters.totalCost} onChange={(e)=>setFilters({...filters,totalCost:e.target.value})} /></th>
+              <th></th>
+              <th><input style={tiny.input} placeholder="Supplier" value={filters.supplier} onChange={(e)=>setFilters({...filters,supplier:e.target.value})} /></th>
+              <th><input style={tiny.input} placeholder="Invoice Number" value={filters.po} onChange={(e)=>setFilters({...filters,po:e.target.value})} /></th>
+              <th><input style={tiny.input} placeholder="By" value={filters.by} onChange={(e)=>setFilters({...filters,by:e.target.value})} /></th>
+              <th><input style={tiny.input} placeholder="Note" value={filters.note} onChange={(e)=>setFilters({...filters,note:e.target.value})} /></th>
+          </tr>
           </thead>
           <tbody>
-            {rows.map((r) => (
-              <tr key={r.id}>
-                <td>{r.received_at}</td>
-                <td>#{r.item_id} — {r.item_code} / {r.item_name}</td>
-                <td style={{ color: "#0a6", fontWeight: 600 }}>+{r.qty}</td>
-                <td>{r.unit_cost ? `$${parseFloat(r.unit_cost).toFixed(2)}` : "-"}</td>
-                <td style={{ fontWeight: 600 }}>
-                  {r.total_cost ? `$${parseFloat(r.total_cost).toFixed(2)}` : "-"}
-                </td>
-                <td>{r.supplier_id ?? "-"}</td>
-                <td>{r.po_number ?? "-"}</td>
-                <td>{r.received_by ?? "-"}</td>
-                <td>{r.note ?? "-"}</td>
-              </tr>
-            ))}
-            {rows.length === 0 && (
+            {filteredRows.map((r) => {
+              const qty = parseFloat(r.qty || 0);
+              const totalCost = parseFloat(r.total_cost || 0);
+              const unitPrice = qty ? totalCost / qty : (parseFloat(r.unit_cost || 0) || 0);
+              return (
+                <tr key={r.id}>
+                  <td>{r.received_at}</td>
+                  <td>#{r.item_id} — {r.item_code} / {r.item_name}</td>
+                  <td style={{ color: "#0a6", fontWeight: 600 }}>+{r.qty}</td>
+                  <td>{unitPrice ? `${unitPrice.toFixed(2)}` : "-"}</td>
+                  <td style={{ fontWeight: 600 }}>
+                    {totalCost ? `$${totalCost.toFixed(2)}` : "-"}
+                  </td>
+                  <td>{r.Item_Stock ?? '-'}</td>
+                  <td>{r.supplier_id ?? "-"}</td>
+                  <td>{r.po_number ?? "-"}</td>
+                  <td>{r.received_by ?? "-"}</td>
+                  <td>{r.note ?? "-"}</td>
+                </tr>
+              );
+            })}
+            {filteredRows.length === 0 && (
               <tr>
-                <td colSpan="9">No IN movements</td>
+                <td colSpan="10">No IN movements</td>
               </tr>
             )}
           </tbody>
@@ -925,17 +1037,69 @@ const MovementInTable = ({ rows }) => {
 };
 
 const MovementOutTable = ({ rows }) => {
-  // Calculate total quantity and value out
+  const [filters, setFilters] = useState({
+    date: "",
+    item: "",
+    qty: "",
+    unitPrice: "",
+    totalValue: "",
+    iNStock: "",
+    reason: "",
+    po: "",
+    supplier: "",
+    by: "",
+    note: "",
+  });
+
+  const matchNumber = (value, expr) => {
+    if (!expr) return true;
+    const v = Number(value || 0);
+    const m = String(expr).trim().match(/^(>=|<=|>|<|=)?\s*(-?\d+(?:\.\d+)?)$/);
+    if (!m) return String(value ?? "").toLowerCase().includes(String(expr).toLowerCase());
+    const op = m[1] || "=";
+    const n = Number(m[2]);
+    switch (op) {
+      case ">": return v > n;
+      case "<": return v < n;
+      case ">=": return v >= n;
+      case "<=": return v <= n;
+      default: return v === n;
+    }
+  };
+
+  const filteredRows = useMemo(() => {
+    return rows.map((r) => {
+      const qtyAbs = Math.abs(parseFloat(r.qty || 0));
+      const totalVal = (parseFloat(r.unit_price || 0)) * (parseFloat(r.qty || 0));
+      const unitPrice = qtyAbs ? Math.abs(totalVal) / qtyAbs : 0;
+      return { ...r, _qtyAbs: qtyAbs, _unitPrice: unitPrice, _totalVal: totalVal };
+    }).filter((r) => {
+      const dateOk = String(r.issued_at || "").toLowerCase().includes(filters.date.toLowerCase());
+      const itemStr = `#${r.item_id} ${r.item_code} ${r.item_name}`;
+      const itemOk = itemStr.toLowerCase().includes(filters.item.toLowerCase());
+      const qtyOk = matchNumber(r._qtyAbs, filters.qty);
+      const unitOk = matchNumber(r._unitPrice, filters.unitPrice);
+      const totalOk = matchNumber(Math.abs(r._totalVal), filters.totalValue);
+      const reasonOk = String(r.reason || "").toLowerCase().includes(filters.reason.toLowerCase());
+      const poOk = String(r.po_number || r.order_id || "").toLowerCase().includes(filters.po.toLowerCase());
+      const supplierOk = String(r.supplier_id || "").toLowerCase().includes(filters.supplier.toLowerCase());
+      const byOk = String(r.issued_by || "").toLowerCase().includes(filters.by.toLowerCase());
+      const noteOk = String(r.note || "").toLowerCase().includes(filters.note.toLowerCase());
+      return dateOk && itemOk && qtyOk && unitOk && totalOk && reasonOk && poOk && supplierOk && byOk && noteOk;
+    });
+  }, [rows, filters]);
+
+  // Calculate totals from filtered rows
   const { totalQty, totalValue } = useMemo(() => {
-    return rows.reduce((acc, row) => {
-      const qty = parseFloat(row.qty || 0);
-      const unitPrice = parseFloat(row.unit_price || 0);
+    return filteredRows.reduce((acc, row) => {
+      const qty = parseFloat(row._qtyAbs || 0);
+      const unitPrice = parseFloat(row._unitPrice || 0);
       return {
         totalQty: acc.totalQty + qty,
         totalValue: acc.totalValue + (qty * unitPrice)
       };
     }, { totalQty: 0, totalValue: 0 });
-  }, [rows]);
+  }, [filteredRows]);
 
   return (
     <div>
@@ -948,37 +1112,57 @@ const MovementOutTable = ({ rows }) => {
               <th>Qty</th>
               <th>Unit Price</th>
               <th>Total Value</th>
+              <th>IN Stock</th>
               <th>Reason</th>
               <th>PO/Order #</th>
               <th>Supplier</th>
               <th>By</th>
               <th>Note</th>
             </tr>
+            <tr>
+              <th><input style={tiny.input} placeholder="Filter date" value={filters.date} onChange={(e)=>setFilters({...filters,date:e.target.value})} /></th>
+              <th><input style={tiny.input} placeholder="Filter item" value={filters.item} onChange={(e)=>setFilters({...filters,item:e.target.value})} /></th>
+              <th><input style={tiny.input} placeholder="Qty (e.g. >=5)" value={filters.qty} onChange={(e)=>setFilters({...filters,qty:e.target.value})} /></th>
+              <th><input style={tiny.input} placeholder="Unit (e.g. <10)" value={filters.unitPrice} onChange={(e)=>setFilters({...filters,unitPrice:e.target.value})} /></th>
+              <th><input style={tiny.input} placeholder="Total (e.g. =100)" value={filters.totalValue} onChange={(e)=>setFilters({...filters,totalValue:e.target.value})} /></th>
+              <th></th>
+              <th><input style={tiny.input} placeholder="Reason" value={filters.reason} onChange={(e)=>setFilters({...filters,reason:e.target.value})} /></th>
+              <th><input style={tiny.input} placeholder="PO/Order" value={filters.po} onChange={(e)=>setFilters({...filters,po:e.target.value})} /></th>
+              <th><input style={tiny.input} placeholder="Supplier" value={filters.supplier} onChange={(e)=>setFilters({...filters,supplier:e.target.value})} /></th>
+              <th><input style={tiny.input} placeholder="By" value={filters.by} onChange={(e)=>setFilters({...filters,by:e.target.value})} /></th>
+              <th><input style={tiny.input} placeholder="Note" value={filters.note} onChange={(e)=>setFilters({...filters,note:e.target.value})} /></th>
+          </tr>
           </thead>
           <tbody>
-            {rows.map((r) => (
-              <tr key={r.id}>
-                <td>{r.issued_at}</td>
-                <td>#{r.item_id} — {r.item_code} / {r.item_name}</td>
-                <td style={{ color: "#c00", fontWeight: 600 }}>-{parseFloat(r.qty)}</td>
-                <td>{r.unit_price ? `$${parseFloat(r.unit_price).toFixed(4)}` : "-"}</td>
-                <td style={{ fontWeight: 600, color: "#c00" }}>
-                  {r.unit_price ? `-$${(r.qty * r.unit_price).toFixed(2)}` : "-"}
-                </td>
-                <td>{r.reason || "-"}</td>
-                <td>{r.po_number || r.order_id || "-"}</td>
-                <td>{r.supplier_id || "-"}</td>
-                <td>{r.issued_by || "-"}</td>
-                <td>{r.note || "-"}</td>
-              </tr>
-            ))}
-            {rows.length === 0 ? (
+            {filteredRows.map((r) => {
+              const qty = Math.abs(parseFloat(r.qty || 0));
+              const totalVal = (parseFloat(r.unit_price || 0)) * (parseFloat(r.qty || 0));
+              const unitPrice = qty ? Math.abs(totalVal) / qty : 0;
+              return (
+                <tr key={r.id}>
+                  <td>{r.issued_at}</td>
+                  <td>#{r.item_id} — {r.item_code} / {r.item_name}</td>
+                  <td style={{ color: "#c00", fontWeight: 600 }}>-{parseFloat(r.qty)}</td>
+                  <td>{unitPrice ? `${unitPrice.toFixed(2)}` : "-"}</td>
+                  <td style={{ fontWeight: 600, color: "#c00" }}>
+                    {unitPrice ? `-$${(qty * unitPrice).toFixed(2)}` : "-"}
+                  </td>
+                  <td>{r.Item_Stock ?? '-'}</td>
+                  <td>{r.reason || "-"}</td>
+                  <td>{r.po_number || r.order_id || "-"}</td>
+                  <td>{r.supplier_id || "-"}</td>
+                  <td>{r.issued_by || "-"}</td>
+                  <td>{r.note || "-"}</td>
+                </tr>
+              );
+            })}
+            {filteredRows.length === 0 ? (
               <tr>
-                <td colSpan="10">No OUT movements</td>
+                <td colSpan="11">No OUT movements</td>
               </tr>
             ) : (
               <tr style={{ fontWeight: 'bold', backgroundColor: '#f9f9f9' }}>
-                <td colSpan="2">Total</td>
+                <td colSpan="3">Total</td>
                 <td>-{totalQty.toFixed(2)}</td>
                 <td></td>
                 <td style={{ color: '#c00' }}>-${Math.abs(totalValue).toFixed(2)}</td>
@@ -1052,35 +1236,48 @@ const CombinedMovementsTable = ({ inRows, outRows }) => {
               <th>Item</th>
               <th>Type</th>
               <th>Qty</th>
+              <th>Unit Price</th>
               <th>Value</th>
+              <th>Stock</th>
               <th>Details</th>
               <th>By</th>
               <th>Note</th>
             </tr>
           </thead>
           <tbody>
-            {combinedRows.map((row, index) => (
-              <tr key={`${row.type}-${row.id}`}>
-                <td>{row.date}</td>
-                <td>
-                  #{row.item_id} — {row.item_code} / {row.item_name}
-                </td>
-                <td>{row.type.toUpperCase()}</td>
-                <td style={{ 
-                  color: row.type === 'in' ? '#0a6' : '#c00', 
-                  fontWeight: 600 
-                }}>
-                  {row.type === 'in' ? '+' : '-'}{row.amount}
-                </td>
-                <td>{row.value ? `$${row.value.toFixed(2)}` : '-'}</td>
-                <td>{row.details}</td>
-                <td>{row.by || '-'}</td>
-                <td>{row.note || '-'}</td>
-              </tr>
-            ))}
+            {combinedRows.map((row) => {
+              const qtyAbs = Math.abs(parseFloat(row.amount || 0));
+              const valAbs = Math.abs(parseFloat(row.value || 0));
+              let unitPrice = qtyAbs ? valAbs / qtyAbs : 0;
+              if (!unitPrice) {
+                if (row.type === 'in') unitPrice = parseFloat(row.unit_cost || 0);
+                if (row.type === 'out') unitPrice = parseFloat(row.unit_price || 0);
+              }
+              return (
+                <tr key={`${row.type}-${row.id}`}>
+                  <td>{row.date}</td>
+                  <td>
+                    #{row.item_id} — {row.item_code} / {row.item_name}
+                  </td>
+                  <td>{row.type.toUpperCase()}</td>
+                  <td style={{ 
+                    color: row.type === 'in' ? '#0a6' : '#c00', 
+                    fontWeight: 600 
+                  }}>
+                    {row.type === 'in' ? '+' : '-'}{row.amount}
+                  </td>
+                  <td>{unitPrice ? `${unitPrice.toFixed(2)}` : '-'}</td>
+                  <td>{row.value ? `$${row.value.toFixed(2)}` : '-'}</td>
+                  <td>{row.Item_Stock ?? '-'}</td>
+                  <td>{row.details}</td>
+                  <td>{row.by || '-'}</td>
+                  <td>{row.note || '-'}</td>
+                </tr>
+              );
+            })}
             {combinedRows.length === 0 && (
               <tr>
-                <td colSpan="8">No movements found</td>
+                <td colSpan="10">No movements found</td>
               </tr>
             )}
           </tbody>
@@ -1145,7 +1342,7 @@ const CombinedMovementsTable = ({ inRows, outRows }) => {
               marginLeft: '8px',
               fontWeight: 'normal'
             }}>
-              {totalValue >= 0 ? '(Profit)' : '(Loss)'}
+            {totalValue < 0 && "(Loss)"}
             </span>
           </div>
         </div>

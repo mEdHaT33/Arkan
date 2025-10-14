@@ -26,9 +26,10 @@ import FinanceBalance from "./components/FinanceBalance";
 import AllReceiptsPage from "./components/AllReceiptsPage"; 
 import UsersPage from "./components/UsersPage";
 import SessionTest from "./components/SessionTest";
+import ExcelImportPage from "./components/ExcelImportPage";
 const LayoutWithSidebar = ({ children }) => {
   const location = useLocation();
-  const showSidebar = location.pathname !== "/login";
+  const showSidebar = location.pathname !== "/Login";
   const role = localStorage.getItem("role") || ""; // <-- pass role from localStorage
 
   return (
@@ -41,11 +42,11 @@ const LayoutWithSidebar = ({ children }) => {
 
 function App() {
   return (
-    <Router>
+    <Router basename="/arkann">
       <LayoutWithSidebar>
         <Routes>
-          <Route path="/" element={<Navigate to="/login" />} />
-          <Route path="/login" element={<Login />} />
+          <Route path="/" element={<Navigate to="/Login" />} />
+          <Route path="/Login" element={<Login />} />
 
           <Route
             path="/dashboard"
@@ -162,6 +163,14 @@ function App() {
             element={
               <ProtectedRoute>
                 <UsersPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/excel-import"
+            element={
+              <ProtectedRoute>
+                <ExcelImportPage />
               </ProtectedRoute>
             }
           />

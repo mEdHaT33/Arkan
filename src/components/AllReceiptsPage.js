@@ -42,6 +42,11 @@ export default function AllReceiptsPage() {
   const [limit, setLimit] = useState(50);
   const [refreshTick, setRefreshTick] = useState(0);
 
+  // Grouping controls
+  const [groupByParty, setGroupByParty] = useState(false);
+  const [groupPartyId, setGroupPartyId] = useState("");
+  const [expandedPartyKey, setExpandedPartyKey] = useState(""); // `${type}:${id}` to show receipts
+
   const loggedUser = (() => {
     try {
       return JSON.parse(localStorage.getItem("loggedUser") || "{}");
@@ -132,6 +137,47 @@ export default function AllReceiptsPage() {
     };
   }, [partyType, partyId, limit, refreshTick]);
 
+  // Grouped totals by party (client/vendor)
+  const grouped = useMemo(() => {
+    const map = new Map();
+    for (const r of receipts) {
+      const key = `${r.party_type}:${r.party_id}`;
+      const entry = map.get(key) || {
+        party_id: r.party_id,
+        party_type: r.party_type,
+        party_name: r.party_name,
+        in: 0,
+        out: 0,
+        count: 0,
+      };
+      const amt = Number(r.amount) || 0;
+      if (r.direction === "in") entry.in += amt; else entry.out += amt;
+      entry.count += 1;
+      map.set(key, entry);
+    }
+    let rows = Array.from(map.values());
+    if (groupPartyId) {
+      const pid = Number(groupPartyId);
+      rows = rows.filter(x => Number(x.party_id) === pid);
+    }
+    rows.sort((a,b) => (b.in - b.out) - (a.in - a.out));
+    return rows;
+  }, [receipts, groupPartyId]);
+
+  // Details for expanded party (receipts list + totals)
+  const expanded = useMemo(() => {
+    if (!expandedPartyKey) return { rows: [], totals: { tin: 0, tout: 0, net: 0 } };
+    const [ptype, pidStr] = expandedPartyKey.split(":");
+    const pid = Number(pidStr);
+    const rows = receipts.filter(r => String(r.party_type) === String(ptype) && Number(r.party_id) === pid);
+    let tin = 0, tout = 0;
+    for (const r of rows) {
+      const a = Number(r.amount) || 0;
+      if (r.direction === "in") tin += a; else tout += a;
+    }
+    return { rows, totals: { tin, tout, net: tin - tout } };
+  }, [expandedPartyKey, receipts]);
+
   /* ------------ totals ------------ */
   const totals = useMemo(() => {
     let tin = 0,
@@ -161,7 +207,7 @@ export default function AllReceiptsPage() {
         method,
         reference,
         note,
-        created_by: loggedUser?.username || "finance1",
+        created_by: loggedUser?.username || "finance1", 
         account,            // bank | cash  -> updates finance_txn
         txn_date: txnDate,  // posts into finance_txn for that date
       };
@@ -326,7 +372,7 @@ export default function AllReceiptsPage() {
               onChange={(e) => setNote(e.target.value)}
               placeholder="Write a note…"
             />
-          </div>
+          </div>. 
 
           <div className="actions span2">
             <button className="primary" onClick={saveReceipt} disabled={saving || loadingParties}>
@@ -347,7 +393,24 @@ export default function AllReceiptsPage() {
       <section className="card">
         <div className="card-head">
           <h3>Recent Receipts</h3>
-          <div className="toolbar">
+          <div className="toolbar" style={{ display:'flex', gap:8, alignItems:'center' }}>
+            <label className="muted" style={{ display:'flex', gap:6, alignItems:'center' }}>
+              <input type="checkbox" checked={groupByParty} onChange={(e)=>setGroupByParty(e.target.checked)} />
+              Group by party
+            </label>
+            {groupByParty && (
+              <select
+                value={groupPartyId}
+                onChange={(e)=>setGroupPartyId(e.target.value)}
+                className="ghost"
+                style={{ height:34, padding:'0 10px' }}
+              >
+                <option value="">All parties</option>
+                {parties.map((p) => (
+                  <option key={p.id} value={p.id}>{p.name}</option>
+                ))}
+              </select>
+            )}
             <select
               value={limit}
               onChange={(e) => setLimit(Number(e.target.value))}
@@ -370,51 +433,145 @@ export default function AllReceiptsPage() {
         </div>
 
         <div className="table-wrap">
-          <table className="tbl">
-            <thead>
-              <tr>
-                <th>#</th>
-                <th>Date/Time</th>
-                <th>Party</th>
-                <th>Type</th>
-                <th>Dir</th>
-                <th className="right">Amount</th>
-                <th>Method</th>
-                <th>Reference</th>
-                <th>Note</th>
-                <th>By</th>
-              </tr>
-            </thead>
-            <tbody>
-              {!receipts.length && (
+          {groupByParty ? (
+            <table className="tbl">
+              <thead>
                 <tr>
-                  <td colSpan="10" className="center muted">
-                    No receipts yet
-                  </td>
+                  <th>ID</th>
+                  <th>Party</th>
+                  <th>Type</th>
+                  <th>IN</th>
+                  <th>OUT</th>
+                  <th>NET</th>
+                  <th>Count</th>
+                  <th>Actions</th>
                 </tr>
-              )}
-              {receipts.map((r) => (
-                <tr key={r.id}>
-                  <td>{r.id}</td>
-                  <td>
-                    {r.created_at
-                      ? new Date(String(r.created_at).replace(" ", "T")).toLocaleString()
-                      : "-"}
-                  </td>
-                  <td>{r.party_name}</td>
-                  <td className="caps">{r.party_type}</td>
-                  <td className={`caps ${r.direction === "in" ? "c-in" : "c-out"}`}>
-                    {r.direction}
-                  </td>
-                  <td className="right">{fmt(r.amount)}</td>
-                  <td>{r.method || "-"}</td>
-                  <td>{r.reference || "-"}</td>
-                  <td>{r.note || "-"}</td>
-                  <td>{r.created_by || "-"}</td>
+              </thead>
+              <tbody>
+                {!grouped.length && (
+                  <tr>
+                    <td colSpan="8" className="center muted">No receipts</td>
+                  </tr>
+                )}
+                {grouped.map((g) => {
+                  const key = `${g.party_type}:${g.party_id}`;
+                  const isOpen = expandedPartyKey === key;
+                  return (
+                    <>
+                      <tr key={key}>
+                        <td>{g.party_id}</td>
+                        <td>{g.party_name}</td>
+                        <td>{g.party_type}</td>
+                        <td>{fmt(g.in)}</td>
+                        <td>{fmt(g.out)}</td>
+                        <td>{fmt(g.in - g.out)}</td>
+                        <td>{g.count}</td>
+                        <td>
+                          <button className="ghost" onClick={() => setExpandedPartyKey(isOpen ? "" : key)}>
+                            {isOpen ? "Hide receipts" : "Show receipts"}
+                          </button>
+                        </td>
+                      </tr>
+                      {isOpen && (
+                        <tr>
+                          <td colSpan="8" style={{ background: '#fafafa' }}>
+                            <div style={{ overflowX: 'auto' }}>
+                              <table className="tbl" style={{ width:'100%' }}>
+                                <thead>
+                                  <tr>
+                                    <th>#</th>
+                                    <th>Date/Time</th>
+                                    <th>Dir</th>
+                                    <th>Amount</th>
+                                    <th>Method</th>
+                                    <th>Reference</th>
+                                    <th className="right">Note</th>
+                                    <th className="right">By</th>
+                                  </tr>
+                                </thead>
+                                <tbody>
+                                  {expanded.rows.map(r => (
+                                    <tr key={r.id}>
+                                      <td>{r.id}</td>
+                                      <td>{r.created_at ? new Date(String(r.created_at).replace(' ','T')).toLocaleString() : '-'}</td>
+                                      <td className={`caps ${r.direction === 'in' ? 'c-in' : 'c-out'}`}>{r.direction}</td>
+                                      <td>{fmt(r.amount)}</td>
+                                      <td>{r.method || '-'}</td>
+                                      <td>{r.reference || '-'}</td>
+                                      <td className="right">{r.note || '-'}</td>
+                                      <td className="right">{r.created_by || '-'}</td>
+                                    </tr>
+                                  ))}
+                                  {expanded.rows.length === 0 && (
+                                    <tr><td colSpan="8" className="center muted">No receipts</td></tr>
+                                  )}
+                                </tbody>
+                                <tfoot>
+                                  <tr>
+                                    <td colSpan="3">Totals</td>
+                                    <td className="right">{fmt(expanded.totals.net)} (net)</td>
+                                    <td colSpan="4" className="right">
+                                      IN {fmt(expanded.totals.tin)} / OUT {fmt(expanded.totals.tout)}
+                                    </td>
+                                  </tr>
+                                </tfoot>
+                              </table>
+                            </div>
+                          </td>
+                        </tr>
+                      )}
+                    </>
+                  );
+                })}
+              </tbody>
+            </table>
+          ) : (
+            <table className="tbl">
+              <thead>
+                <tr>
+                  <th>#</th>
+                  <th>Date/Time</th>
+                  <th>Party</th>
+                  <th>Type</th>
+                  <th>Dir</th>
+                  <th>Amount</th>
+                  <th>Method</th>
+                  <th>Reference</th>
+                  <th>Note</th>
+                  <th>By</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
+              </thead>
+              <tbody>
+                {!receipts.length && (
+                  <tr>
+                    <td colSpan="10" className="center muted">
+                      No receipts yet
+                    </td>
+                  </tr>
+                )}
+                {receipts.map((r) => (
+                  <tr key={r.id}>
+                    <td>{r.id}</td>
+                    <td>
+                      {r.created_at
+                        ? new Date(String(r.created_at).replace(" ", "T")).toLocaleString()
+                        : "-"}
+                    </td>
+                    <td>{r.party_name}</td>
+                    <td className="caps">{r.party_type}</td>
+                    <td className={`caps ${r.direction === "in" ? "c-in" : "c-out"}`}>
+                      {r.direction}
+                    </td>
+                    <td>{fmt(r.amount)}</td>
+                    <td>{r.method || "-"}</td>
+                    <td>{r.reference || "-"}</td>
+                    <td>{r.note || "-"}</td>
+                    <td>{r.created_by || "-"}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          )}
         </div>
       </section>
 
