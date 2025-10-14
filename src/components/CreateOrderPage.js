@@ -119,7 +119,7 @@ const CreateOrderPage = ({ isSidebarOpen }) => {
 
       <div className="form-group">
         <div className="form-field">
-          <label className="form-label"><span className="field-icon">👤</span> Select Client</label>
+          <label className="form-label">Select Client</label>
           <select
             value={orderData.client_id}
             onChange={(e) => setOrderData({ ...orderData, client_id: e.target.value })}
@@ -145,15 +145,15 @@ const CreateOrderPage = ({ isSidebarOpen }) => {
         </div>
 
         <div className="form-field">
-          <label className="form-label"><span className="field-icon">📄</span> Upload Brief File</label>
+          <label className="form-label"><span ></span> Upload Brief File</label>
           <input type="file" name="brief_file" onChange={handleFileChange} className="form-input" />
         </div>
  <div className="form-field">
-            <label className="form-label"><span className="field-icon">💸</span> Upload Quotation File</label>
+            <label className="form-label"> Upload Quotation File</label>
             <input type="file" name="quotation_file" onChange={handleFileChange} className="form-input" />
           </div>
            <div className="form-field">
-            <label className="form-label"><span className="field-icon">🖼️</span> Upload 3D File</label>
+            <label className="form-label">Upload 3D File</label>
             <input type="file" name="d3_file" onChange={handleFileChange} className="form-input" />
           </div>
         {/* {orderData.has_3d ? (
@@ -169,28 +169,28 @@ const CreateOrderPage = ({ isSidebarOpen }) => {
         )} */}
 
         <div className="form-field">
-          <label className="form-label"><span className="field-icon">🖌️</span> Upload Prova File</label>
+          <label className="form-label"> Upload Prova File</label>
           <input type="file" name="prova_file" onChange={handleFileChange} className="form-input" />
         </div>
 
         <div className="form-field">
-          <label className="form-label"><span className="field-icon">🏭</span> Upload Production File</label>
+          <label className="form-label">Upload Production File</label>
           <input type="file" name="production_file" onChange={handleFileChange} className="form-input" />
         </div>
 
         <div className="form-field">
-          <label className="form-label"><span className="field-icon">📸</span> Upload Final Images</label>
+          <label className="form-label"> Upload Final Images</label>
           <input type="file" name="final_images" onChange={handleFileChange} className="form-input" />
         </div>
 
         <div className="form-field">
-          <label className="form-label"><span className="field-icon">💳</span> Upload Invoice File</label>
+          <label className="form-label"> Upload Invoice File</label>
           <input type="file" name="invoice_file" onChange={handleFileChange} className="form-input" />
         </div>
 
         <div className="form-buttons">
           <button onClick={handleSubmit} disabled={loading} className="form-button submit-button">
-            <span className="button-icon">📦</span>
+        
             {loading ? <span className="spinner"></span> : "Create Order"}
           </button>
           <button onClick={handleReset} disabled={loading} className="form-button reset-button">
@@ -199,7 +199,7 @@ const CreateOrderPage = ({ isSidebarOpen }) => {
         </div>
       </div>
 
-      {status && <div className="order-status">📦 Order Status: {status}</div>}
+      {status && <div className="order-status"> Order Status: {status}</div>}
 
       {showModal && (
         <div className="modal">

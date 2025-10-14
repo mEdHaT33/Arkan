@@ -49,9 +49,9 @@ export default function AllReceiptsPage() {
 
   const loggedUser = (() => {
     try {
-      return JSON.parse(localStorage.getItem("loggedUser") || "{}");
+      return JSON.parse(localStorage.getItem("username"));
     } catch {
-      return {};
+      return {error: "No logged user"};
     }
   })();
 
@@ -207,7 +207,7 @@ export default function AllReceiptsPage() {
         method,
         reference,
         note,
-        created_by: loggedUser?.username || "finance1", 
+        created_by: loggedUser?.username, 
         account,            // bank | cash  -> updates finance_txn
         txn_date: txnDate,  // posts into finance_txn for that date
       };
@@ -498,7 +498,11 @@ export default function AllReceiptsPage() {
                                       <td>{fmt(r.amount)}</td>
                                       <td>{r.method || '-'}</td>
                                       <td>{r.reference || '-'}</td>
-                                      <td className="right">{r.note || '-'}</td>
+                                      <td className="right">
+                                        <div style={{ maxWidth: 180, overflowX: "auto", whiteSpace: "nowrap" }}>
+                                          {r.note || '-'}
+                                        </div>
+                                      </td>
                                       <td className="right">{r.created_by || '-'}</td>
                                     </tr>
                                   ))}
@@ -563,9 +567,23 @@ export default function AllReceiptsPage() {
                       {r.direction}
                     </td>
                     <td>{fmt(r.amount)}</td>
-                    <td>{r.method || "-"}</td>
-                    <td>{r.reference || "-"}</td>
-                    <td>{r.note || "-"}</td>
+                    <td style={{ maxWidth: 180, overflow: "auto", whiteSpace: "nowrap" }}>
+                      <div style={{ maxWidth: 180, overflowX: "auto", whiteSpace: "nowrap" }}>
+                        {r.method || ""}
+                      </div>
+                    </td>
+                    <td style={{ maxWidth: 220, overflow: "auto", whiteSpace: "nowrap" }}>
+                      <div style={{ maxWidth: 220, overflowX: "auto", whiteSpace: "nowrap" }}>
+                        {r.reference || ""}
+                      </div>
+                    </td>
+                    <td>
+                      <td style={{ maxWidth: 180, overflow: "auto", whiteSpace: "nowrap" }}>
+                  <div style={{ maxWidth: 180, overflowX: "auto", whiteSpace: "nowrap" }}>
+                    {r.note || ""}
+                  </div>
+                </td>
+                    </td>
                     <td>{r.created_by || "-"}</td>
                   </tr>
                 ))}
@@ -584,7 +602,7 @@ export default function AllReceiptsPage() {
           --bg:#f7f8fb; --card:#fff; --bd:#e9eef5; --txt:#1e293b; --muted:#6b7280;
           --pri:#4f46e5; --pri-weak:#eef2ff; --ok:#0a7a2d; --warn:#b00020;
         }
-        .funr-wrap { max-width: 1100px; margin: 0 auto; padding: 16px; background: var(--bg); min-height: 100vh; }
+        .funr-wrap { max-width: 1400px; margin: 0 auto; padding: 16px; background: var(--bg); min-height: 100vh; }
         .funr-top { display:flex; align-items:center; justify-content:space-between; gap:12px; margin-bottom: 12px; }
         .funr-top h1 { margin:0; font-size: 24px; }
         .seg { display:inline-flex; border:1px solid var(--bd); border-radius: 12px; overflow:hidden; }

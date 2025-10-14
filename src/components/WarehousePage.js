@@ -555,8 +555,8 @@ const WarehousePage = () => {
                       <td>{it.item_name}</td>
                       <td>{it.quantity}</td>
                       <td>{it.unit}</td>
-                      <td>{it.purchase_price ? `$${parseFloat(it.purchase_price).toFixed(2)}` : '-'}</td>
-                      <td>${(parseFloat(it.quantity || 0) * parseFloat(it.purchase_price || 0)).toFixed(2)}</td>
+                      <td>{it.purchase_price ? `SAR ${parseFloat(it.purchase_price).toFixed(2)}` : '-'}</td>
+                      <td>SAR {(parseFloat(it.quantity || 0) * parseFloat(it.purchase_price || 0)).toFixed(2)}</td>
                       <td>{it.reorder_level ?? "-"}</td>
                       <td>{it.location ?? "-"}</td>
                       <td>
@@ -1003,13 +1003,17 @@ const MovementInTable = ({ rows }) => {
                   <td style={{ color: "#0a6", fontWeight: 600 }}>+{r.qty}</td>
                   <td>{unitPrice ? `${unitPrice.toFixed(2)}` : "-"}</td>
                   <td style={{ fontWeight: 600 }}>
-                    {totalCost ? `$${totalCost.toFixed(2)}` : "-"}
+                    {totalCost ? `SAR ${totalCost.toFixed(2)}` : "-"}
                   </td>
                   <td>{r.Item_Stock ?? '-'}</td>
                   <td>{r.supplier_id ?? "-"}</td>
                   <td>{r.po_number ?? "-"}</td>
                   <td>{r.received_by ?? "-"}</td>
-                  <td>{r.note ?? "-"}</td>
+                  <td style={{ maxWidth: 200, overflowX: "auto", whiteSpace: "nowrap" }}>
+                    <div style={{ maxWidth: 200, overflowX: "auto", whiteSpace: "nowrap" }}>
+                      {r.note ?? "-"}
+                    </div>
+                  </td>
                 </tr>
               );
             })}
@@ -1030,7 +1034,7 @@ const MovementInTable = ({ rows }) => {
         backgroundColor: '#f5f5f5',
         borderRadius: '4px'
       }}>
-        Total IN Value: ${totalValue.toFixed(2)}
+        Total IN Value: SAR {totalValue.toFixed(2)}
       </div>
     </div>
   );
@@ -1145,15 +1149,18 @@ const MovementOutTable = ({ rows }) => {
                   <td style={{ color: "#c00", fontWeight: 600 }}>-{parseFloat(r.qty)}</td>
                   <td>{unitPrice ? `${unitPrice.toFixed(2)}` : "-"}</td>
                   <td style={{ fontWeight: 600, color: "#c00" }}>
-                    {unitPrice ? `-$${(qty * unitPrice).toFixed(2)}` : "-"}
+                    {unitPrice ? `-SAR ${(qty * unitPrice).toFixed(2)}` : "-"}
                   </td>
                   <td>{r.Item_Stock ?? '-'}</td>
                   <td>{r.reason || "-"}</td>
                   <td>{r.po_number || r.order_id || "-"}</td>
                   <td>{r.supplier_id || "-"}</td>
                   <td>{r.issued_by || "-"}</td>
-                  <td>{r.note || "-"}</td>
-                </tr>
+                  <td style={{ maxWidth: 200, overflowX: "auto", whiteSpace: "nowrap" }}>
+                    <div style={{ maxWidth: 200, overflowX: "auto", whiteSpace: "nowrap" }}>
+                      {r.note ?? "-"}
+                    </div>
+                  </td>                </tr>
               );
             })}
             {filteredRows.length === 0 ? (
@@ -1165,7 +1172,7 @@ const MovementOutTable = ({ rows }) => {
                 <td colSpan="3">Total</td>
                 <td>-{totalQty.toFixed(2)}</td>
                 <td></td>
-                <td style={{ color: '#c00' }}>-${Math.abs(totalValue).toFixed(2)}</td>
+                <td style={{ color: '#c00' }}>-SAR {Math.abs(totalValue).toFixed(2)}</td>
                 <td colSpan="6"></td>
               </tr>
             )}
@@ -1267,11 +1274,15 @@ const CombinedMovementsTable = ({ inRows, outRows }) => {
                     {row.type === 'in' ? '+' : '-'}{row.amount}
                   </td>
                   <td>{unitPrice ? `${unitPrice.toFixed(2)}` : '-'}</td>
-                  <td>{row.value ? `$${row.value.toFixed(2)}` : '-'}</td>
+                  <td>{row.value ? `SAR ${row.value.toFixed(2)}` : '-'}</td>
                   <td>{row.Item_Stock ?? '-'}</td>
                   <td>{row.details}</td>
                   <td>{row.by || '-'}</td>
-                  <td>{row.note || '-'}</td>
+                  <td style={{ maxWidth: 350, overflowX: "auto", whiteSpace: "nowrap" }}>
+                    <div style={{ maxWidth: 350, overflowX: "auto", whiteSpace: "nowrap" }}>
+                      {row.note ?? "-"}
+                    </div>
+                  </td> 
                 </tr>
               );
             })}
@@ -1301,7 +1312,7 @@ const CombinedMovementsTable = ({ inRows, outRows }) => {
         }}>
           <div style={{ fontSize: '14px', color: '#2e7d32', marginBottom: '4px' }}>Total IN Value</div>
           <div style={{ fontSize: '20px', fontWeight: 'bold', color: '#2e7d32' }}>
-            ${totalIn.toFixed(2)}
+            SAR {totalIn.toFixed(2)}
           </div>
         </div>
         
@@ -1313,7 +1324,7 @@ const CombinedMovementsTable = ({ inRows, outRows }) => {
         }}>
           <div style={{ fontSize: '14px', color: '#c62828', marginBottom: '4px' }}>Total OUT Value</div>
           <div style={{ fontSize: '20px', fontWeight: 'bold', color: '#c62828' }}>
-            -${totalOut.toFixed(2)}
+            -SAR {totalOut.toFixed(2)}
           </div>
         </div>
         
@@ -1336,7 +1347,7 @@ const CombinedMovementsTable = ({ inRows, outRows }) => {
             fontWeight: 'bold', 
             color: totalValue >= 0 ? '#2e7d32' : '#c62828' 
           }}>
-            ${Math.abs(totalValue).toFixed(2)}
+            SAR {Math.abs(totalValue).toFixed(2)}
             <span style={{ 
               fontSize: '14px',
               marginLeft: '8px',

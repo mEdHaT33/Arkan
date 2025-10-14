@@ -1,12 +1,13 @@
 import React, { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
+import arkansmall from "../assests/arkansmall.svg";
 
-const roleAvatars = {
-  admin: "🛡️",
-  user: "👤",
-  manager: "📋",
-  guest: "👀",
-};
+// const roleAvatars = {
+//   admin: "🛡️",
+//   user: "👤",
+//   manager: "📋",
+//   guest: "👀",
+// };
 
 const roleDescriptions = {
   admin: "You have full access to all system features and settings.",
@@ -73,8 +74,8 @@ const Dashboard = () => {
         }}
       >
         <div>
-          <div style={{ fontSize: "3rem", marginBottom: "0.5rem" }}>
-            {roleAvatars[role] || "👋"}
+          <div style={{ marginBottom: "0.5rem" }}>
+            <img src={arkansmall} alt="Arkan logo" style={{ height: "48px" }} />
           </div>
           <h2 style={{ margin: "0 0 0.5rem", color: "#333" }}>
             {getGreeting()}, {username || "Guest"}!
@@ -106,7 +107,7 @@ const Dashboard = () => {
             Logout
           </button>
           <div style={{ marginTop: "2rem", color: "#aaa", fontSize: "0.95rem" }}>
-            Need help? <a href="mailto:support@example.com" style={{ color: "#667eea" }}>Contact Support</a>
+            Need help? <a href="mailto:support@binrashideg.com" style={{ color: "#667eea" }}>Contact Support</a>
           </div>
         </div>
       </div>

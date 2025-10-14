@@ -31,6 +31,7 @@ const Login = () => {
         localStorage.setItem("isLoggedIn", "true");
         localStorage.setItem("username", data.username);
         localStorage.setItem("role", data.role);
+        localStorage.setItem("loggedUser", JSON.stringify({ username: data.username, role: data.role }));
 
         navigate("/dashboard");
       } else {
@@ -45,7 +46,10 @@ const Login = () => {
   return (
     <div className="login-container">
       <div className="login-card">
+      <img src={require("../assests/arkansmall.svg").default || require("../assests/arkansmall.svg")} 
+        alt="Erkan Logo" style={{ height: 100, width: "100%", maxWidth: 320, display: "block", margin: "0 auto" }} />
         <h2 className="login-title">Arkan System Login</h2>
+        
         <form onSubmit={handleLogin} className="login-form">
           <div className="form-group">
             <label className="form-label">Username:</label>

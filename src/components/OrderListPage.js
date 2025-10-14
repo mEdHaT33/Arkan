@@ -164,7 +164,7 @@ const OrderListPage = ({ isSidebarOpen }) => {
             target="_blank"
             rel="noreferrer"
           >
-            <span className="field-icon">📄</span> View
+            <span className="field-icon"></span> View
           </a>
         </div>
       )}
@@ -179,7 +179,7 @@ const OrderListPage = ({ isSidebarOpen }) => {
 
   return (
     <div className={`order-page ${isSidebarOpen ? "shifted" : ""}`}>
-      <h2 className="order-title">📦 Order List</h2>
+      <h2 className="order-title"> Order List</h2>
 
       {error && <div className="error-message">❌ {error}</div>}
 

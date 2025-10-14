@@ -395,7 +395,11 @@ export default function FinancePage() {
                 <td>{t.account}</td>
                 <td>{t.direction}</td>
                 <td>{Number(t.amount).toFixed(2)}</td>
-                <td>{t.note || ""}</td>
+                <td style={{ maxWidth: 180, overflow: "auto", whiteSpace: "nowrap" }}>
+                  <div style={{ maxWidth: 180, overflowX: "auto", whiteSpace: "nowrap" }}>
+                    {t.note || ""}
+                  </div>
+                </td>
                 <td>{t.created_by || ""}</td>
                 <td style={{textAlign:'right', fontFamily: 'monospace'}}>
                   {t.cash_balance_after == null ? '—' : Number(t.cash_balance_after).toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}

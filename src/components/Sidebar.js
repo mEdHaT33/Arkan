@@ -87,7 +87,10 @@ const Sidebar = ({ role: roleProp }) => {
       >
         <div className={`sidebar ${isHovered || isOpen ? "open" : "closed"}`}>
           <div className="sidebar-header">
-            <h3 className="sidebar-title">Menu</h3>
+            <div className="sidebar-logo-title" style={{ display: "flex", alignItems: "center", gap: "0.6rem" }}>
+              <img src={require("../assests/arkansmall.svg").default || require("../assests/arkansmall.svg")} alt="Erkan Logo" style={{ height: 32, width: "auto" }} />
+              <h3 className="sidebar-title" style={{ margin: 0 }}>Menu</h3>
+            </div>
             <button onClick={toggleSidebar} className="toggle-button">
               <svg
                 className="toggle-icon"
