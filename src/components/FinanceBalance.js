@@ -48,7 +48,8 @@ export default function FinancePage() {
     to: "",
     category_id: "",
     account: "",
-    direction: ""
+    direction: "",
+    kind: ""
   });
 
   const [form, setForm] = useState({
@@ -331,7 +332,7 @@ export default function FinancePage() {
       {/* Filters */}
       <section style={{marginBottom:12}}>
         <h2>Transactions</h2>
-        <div style={{display:"grid", gridTemplateColumns:"repeat(6,1fr)", gap:12}}>
+        <div style={{display:"grid", gridTemplateColumns:"repeat(6,1fr)", gap:12, marginBottom: 12}}>
           <div>
             <label>From</label>
             <input type="date" value={filters.from} onChange={e=>setFilters({...filters, from:e.target.value})}/>
@@ -345,6 +346,14 @@ export default function FinancePage() {
             <select value={filters.category_id} onChange={e=>setFilters({...filters, category_id:e.target.value})}>
               <option value="">All</option>
               {categories.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+            </select>
+          </div>
+          <div>
+            <label>Kind</label>
+            <select value={filters.kind} onChange={e=>setFilters({...filters, kind:e.target.value})}>
+              <option value="">All</option>
+              <option value="income">Income</option>
+              <option value="expense">Expense</option>
             </select>
           </div>
           <div>
@@ -363,10 +372,10 @@ export default function FinancePage() {
               <option value="out">Out</option>
             </select>
           </div>
-          <div style={{display:"flex", gap:8, alignItems:"flex-end"}}>
-            <button onClick={()=>setFilters({from:"",to:"",category_id:"",account:"",direction:""})}>Reset</button>
-            <button onClick={loadTxns}>Refresh</button>
-          </div>
+        </div>
+        <div style={{display:"flex", gap:8}}>
+          <button onClick={()=>setFilters({from:"",to:"",category_id:"",account:"",direction:"",kind:""})}>Reset</button>
+          <button onClick={loadTxns}>Refresh</button>
         </div>
       </section>
 
