@@ -53,6 +53,44 @@ const CreateOrderPage = ({ isSidebarOpen }) => {
     document.querySelectorAll('input[type="file"]').forEach((input) => (input.value = ""));
   };
 
+  const sendOrderCreatedMail = async (orderResponse) => {
+    try {
+      const createdBy = localStorage.getItem("username") || "unknown";
+      const client = clients.find((c) => String(c.id) === String(orderData.client_id));
+      const clientLabel = client ? `${client.name} (${client.email || "no-email"})` : `ID ${orderData.client_id}`;
+
+      const subject = `New order created by ${createdBy}`;
+      const html = `
+        <h3>New order created</h3>
+        <ul>
+          <li><strong>Client</strong>: ${clientLabel}</li>
+          <li><strong>Created By</strong>: ${createdBy}</li>
+          <li><strong>Status</strong>: ${orderResponse?.status || "pending"}</li>
+          <li><strong>Has 3D</strong>: ${orderData.has_3d ? "Yes" : "No"}</li>
+          <li><strong>Timestamp</strong>: ${new Date().toISOString()}</li>
+        </ul>
+      `;
+
+      const body = new URLSearchParams({ subject, html });
+
+      console.log("📧 Sending order created mail...", { subject, clientLabel, createdBy });
+      const res = await fetch("https://arkanaltafawuq.com/arkan-system/test_mail.php?debug=1", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/x-www-form-urlencoded",
+          "Accept": "application/json",
+        },
+        body,
+      });
+      const text = await res.text();
+      console.log("📧 Mail API response:", { status: res.status, ok: res.ok, text });
+      return res.ok;
+    } catch (e) {
+      console.error("❌ Failed to send order created email:", e);
+      return false;
+    }
+  };
+
   const handleSubmit = () => {
     if (!orderData.client_id) {
       setError("Please select a client.");
@@ -100,6 +138,8 @@ const CreateOrderPage = ({ isSidebarOpen }) => {
       if (data.success) {
         alert("✅ Order Created Successfully!");
         setStatus(data.status);
+        // Fire-and-forget email notification with debug logging (non-blocking)
+        sendOrderCreatedMail(data).catch((e) => console.error("📧 Mail send error", e));
         handleReset();
       } else {
         setError("Error: " + data.message);
@@ -148,7 +188,7 @@ const CreateOrderPage = ({ isSidebarOpen }) => {
           <label className="form-label"><span ></span> Upload Brief File</label>
           <input type="file" name="brief_file" onChange={handleFileChange} className="form-input" />
         </div>
- <div className="form-field">
+          <div className="form-field">
             <label className="form-label"> Upload Quotation File</label>
             <input type="file" name="quotation_file" onChange={handleFileChange} className="form-input" />
           </div>
